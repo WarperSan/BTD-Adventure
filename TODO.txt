@@ -1,0 +1,24 @@
+List of things to do
+
+Very important:
+- Display cards (enemy & own)
+- Choose card
+- Choose enemy target
+- Damage enemy
+- Mana management
+  - Remove mana when card played
+  - Prevent play if no more mana
+- Card management
+  - Remove played card
+  - Refill hand
+  - Empty discard if necessary
+
+Fairly important:
+- Disable all keybinds (or redirect some)
+
+Slightly important:
+- Class selection menu
+- Save file system
+
+Not important:
+- Background blur
