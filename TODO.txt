@@ -1,6 +1,7 @@
 List of things to do
 
 Very important:
+- Display UI
 - Display cards (enemy & own)
 - Choose card
 - Choose enemy target
@@ -18,7 +19,12 @@ Fairly important:
 
 Slightly important:
 - Class selection menu
+- Buffs/Debuffs system
 - Save file system
 
 Not important:
 - Background blur
+
+Complete:
+- Remove default UI
+- Disable tower keybinds (side effect from removing default UI)
