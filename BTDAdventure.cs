@@ -1,15 +1,18 @@
 ﻿using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
+using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure;
+using BTDAdventure.Cards;
+using BTDAdventure.Managers;
 using Il2Cpp;
-using Il2CppAssets.Scripts;
-using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using MelonLoader;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -19,7 +22,7 @@ using UnityEngine.UI;
 
 namespace BTDAdventure;
 
-// Order of actions
+// Order of actions:
 // Fill hand
 // Select card
 // Select enemy
@@ -31,6 +34,7 @@ namespace BTDAdventure;
 // Lock all cards
 // Enemies play
 // Remove hand
+// Update enemies intent
 // Repeat until end of fight or death
 
 
@@ -48,11 +52,35 @@ namespace BTDAdventure;
 // Status Effects
 // Debuffs
 
+// The card attack will be done by the PlayerEntity. 
+
+
 public class BTDAdventure : BloonsTD6Mod
 {
+    public static ModSettingDouble EnemySpeed = new(0.25)
+    {
+        min = 0,
+        max = 2,
+        slider = true,
+    };
+
     public override void OnApplicationStart()
     {
-        ModHelper.Msg<BTDAdventure>("BTDAdventure loaded!");
+        GameManager.Instance.Initialize();
+
+        //drawPile = new WarriorClass().InitialCards();
+    }
+
+    private bool _wasFromMe = false;
+
+    public override void OnMatchStart()
+    {
+        if (_wasFromMe)
+        {
+            GameManager.Instance.StartGame();
+
+            _wasFromMe = false; // Reset
+        }
     }
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -62,14 +90,6 @@ public class BTDAdventure : BloonsTD6Mod
             OnPlaySocialUI();
         }
     }
-
-    private bool _wasFromMe = false;
-
-    public override void OnMatchStart()
-    {
-        _wasFromMe = false; // Reset
-    }
-
     private void OnPlaySocialUI()
     {
         Scene playSocialScene = SceneManager.GetSceneByName("PlaySocialUI");
@@ -112,7 +132,7 @@ public class BTDAdventure : BloonsTD6Mod
 
         GameObject btdAdBtn = GameObject.Instantiate(buttonOG, buttonHolder);
         btdAdBtn.name = "BTD Adventure BTN";
-        btdAdBtn.GetComponentInChildren<NK_TextMeshProUGUI>().localizeKey = "AC";
+        btdAdBtn.GetComponentInChildren<NK_TextMeshProUGUI>().localizeKey = "KYS";
 
         // Change Icon
 
@@ -131,93 +151,4 @@ public class BTDAdventure : BloonsTD6Mod
             UI.instance.LoadGame();
         }));
     }
-}
-
-public abstract class RogueClass
-{
-    public abstract List<Card> InitialCards();
-}
-public class WarriorClass : RogueClass
-{
-    public override List<Card> InitialCards()
-    {
-        List<Card> hand = new();
-
-        Card.AddCard<FighterCard>(hand, 4);
-        Card.AddCard<GuardCard>(hand, 3);
-        Card.AddCard<MageCard>(hand, 1);
-
-        return hand;
-    }
-}
-
-public abstract class Card : ModContent
-{
-    /// <summary>
-    /// Name displayed on the card render
-    /// </summary>
-    public abstract string DisplayName { get; }
-    public virtual string? Portrait { get; }
-
-    public virtual string? Type { get; private set; } // Combat / Magic
-    public virtual string Race { get; private set; } = "Neutral";
-    public virtual CardRarity Rarity { get; private set; } = CardRarity.Common;
-
-    public enum CardRarity
-    {
-        Common, Uncommon, Rare, Epic, Legenday, Other
-    }
-
-    public virtual bool GoesInExile { get; } = false;
-
-    public override void Register()
-    {
-        //this.mod.LoggerInstance.Msg(this);
-    }
-
-    public override string ToString()
-        => $"(Name: \'{DisplayName}\', Type: \'{Type}\', Race: \'{Race}\', Rarity: \'{Rarity}\')";
-
-    public static void AddCard<T>(List<Card> cards, uint count = 1) where T : Card
-    {
-        if (typeof(T) == typeof(Card))
-        {
-            ModHelper.Error<BTDAdventure>($"Invalid type: {typeof(T)}");
-            return;
-        }
-
-        try
-        {
-            for (uint i = 0; i < count; i++)
-            {
-                cards.Add(Activator.CreateInstance<T>());
-            }
-        }
-        catch (Exception e)
-        {
-            ModHelper.Error<BTDAdventure>(e.Message);
-            throw;
-        }
-    }
-}
-
-public class HighWitch : Card
-{
-    public override string DisplayName => "A";
-    public override CardRarity Rarity => CardRarity.Rare;
-}
-
-public class FighterCard : Card
-{
-    public override string DisplayName => "Fighter";
-}
-
-public class GuardCard : Card
-{
-    public override string DisplayName => "Guard";
-}
-
-public class MageCard : Card
-{
-    public override string DisplayName => "Mage";
 }

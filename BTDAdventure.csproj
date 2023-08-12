@@ -1,17 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <RootNamespace>TemplateMod</RootNamespace>
+        <RootNamespace>BTDAdventure</RootNamespace>
         <Configurations>Debug;Release</Configurations>
         <Nullable>enable</Nullable>
-        <AssemblyName>TemplateMod</AssemblyName>
+        <AssemblyName>BTDAdventure</AssemblyName>
         <LangVersion>latest</LangVersion>
         <Optimize>False</Optimize>
         <DebugType>embedded</DebugType>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+      <LangVersion>preview</LangVersion>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+      <LangVersion>preview</LangVersion>
+    </PropertyGroup>
     <ItemGroup>
-      <Folder Include="Patches\UI\" />
+      <None Remove="Bundles\btdadventure.bundle" />
+      <None Remove="Images\Icons\btdadventure.bundle" />
+      <None Remove="Images\Icons\intent_damage.png" />
+      <None Remove="Images\Icons\intent_damage_double.png" />
+      <None Remove="Images\Icons\intent_negate.png" />
+      <None Remove="Images\Icons\intent_pause.png" />
+      <None Remove="Images\Icons\intent_shield-1.png" />
     </ItemGroup>
 
     <Import Project="..\btd6.targets" />
+
+    <ItemGroup>
+      <EmbeddedResource Update="Images\Icons\intent_damage.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Images\Icons\intent_damage_double.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Images\Icons\intent_negate.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Images\Icons\intent_pause.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Images\Icons\intent_shield-1.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+    </ItemGroup>
 </Project>

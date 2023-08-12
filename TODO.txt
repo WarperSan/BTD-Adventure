@@ -1,21 +1,25 @@
 List of things to do
 
 Very important:
-- Display UI
-- Display cards (enemy & own)
+- Replace curtain bottom
+- Replace curtain top
+- Replace reward ui title bg
+- Replace reward item banner
+- Replace reward bg
+
 - Choose card
 - Choose enemy target
-- Damage enemy
-- Mana management
-  - Remove mana when card played
-  - Prevent play if no more mana
 - Card management
   - Remove played card
   - Refill hand
   - Empty discard if necessary
+- Reward screen
+- Enemy generator
+- Level generator
 
 Fairly important:
 - Disable all keybinds (or redirect some)
+- Merchant screen (copy the btd6 shop)
 
 Slightly important:
 - Class selection menu
@@ -27,4 +31,11 @@ Not important:
 
 Complete:
 - Remove default UI
+- Display UI
 - Disable tower keybinds (side effect from removing default UI)
+- Display enemy cards
+- Display hero cards
+- Mana management
+  - Remove mana when card played
+  - Prevent play if no more mana  
+- Damage enemy
