@@ -48,12 +48,12 @@ public abstract class HeroCard
     }
 }
 
-public class Test1 : HeroCard
+public class DartMonkey000 : HeroCard
 {
     public override string Portrait => VanillaSprites.DartMonkey000;
     public override TowerSet? Type => TowerSet.Primary;
 
-    public override string DisplayName => "Test 1";
+    public override string DisplayName => "Base Dart Monkey";
 
     public override void PlayCard()
     {
@@ -61,12 +61,12 @@ public class Test1 : HeroCard
     }
 }
 
-public class Test2 : HeroCard
+public class SuperMonkey000 : HeroCard
 {
     public override string Portrait => VanillaSprites.SuperMonkey000;
     public override TowerSet? Type => TowerSet.Magic;
 
-    public override string DisplayName => "Test 2";
+    public override string DisplayName => "Base Super Monkey";
 
     public override void PlayCard()
     {
@@ -74,20 +74,20 @@ public class Test2 : HeroCard
     }
 }
 
-public class Test3 : HeroCard
+public class MonkeyVillage000 : HeroCard
 {
     public override string Portrait => VanillaSprites.MonkeyVillage000;
     public override TowerSet? Type => TowerSet.Support;
 
-    public override string DisplayName => "Test 3";
+    public override string DisplayName => "Base Monkey Village";
 }
 
-public class Test4 : HeroCard
+public class MonkeyAce000 : HeroCard
 {
     public override string Portrait => VanillaSprites.MonkeyAce000;
     public override TowerSet? Type => TowerSet.Military;
 
-    public override string DisplayName => "Test 4";
+    public override string DisplayName => "Base Monkey Ace";
 
     public override void PlayCard()
     {

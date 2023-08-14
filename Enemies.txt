@@ -1,0 +1,52 @@
+﻿# BLOONS (Type|World) HP / ATK
+- Red (Normal|Forest) 16 / 3 (ADDED)
+- Blue (Normal|Forest) 24 / 4 (ADDED)
+
+Forest
+- Forest Sprite (normal)
+- Caterpillar (normal)
+- Butterfly Cocoon (normal)
+- Giant Butterfly (normal)
+- Paralyzing Spider (normal)
+- Horned Frog (normal)
+
+- Grey Wolf (normal)
+- Lycantrope (normal)
+
+- Forest Wyvern (elite)
+- Giant Wasp (elite)
+- Gorilla King(boss)
+# Night Faun (boss)
+# Evil Forest Guardian (boss)
+
+(HP/ATK/MOVES)
+a = ATTACK
+da = DOUBLE ATTACK
+s = SHIELD
+sa = SHIELD ALL
+h = HEAL
+ha = HEAL ALL
+e = EVOKE
+p = WAIT
+cc = CURSE
+bd = BLIND
+bk = BLOCK
+sl = SILENCE
+wa = FRAIL
+wd = WOUND
+ws = Weakness
+
+- Red (NORMAL) (Forest Sprite) (16/3/a|p|p|a|a|p|da|p|a|da)
+- Blue (NORMAL) (Caterpillar) (24/4/a|s|a|s|p|da|s|da|s|p)
+- Regrow Red (NORMAL) (Butterfly Cocoon) (12/2/s|s|wa|p|p|s|wa|s|wa|a) (TRANSFORMS INTO REGROW BLUE)
+- Regrow Blue (NORMAL) (Giant Butterfly) (30/8/p|a|p|a|p|da|p|da|p|da)
+- Green (NORMAL) (Paralyzing Spider) (32/4/a|p|p|wa|a|p|p|wa|a|p)
+- Yellow (NORMAL) (Horned Frog) (44/5/p|a|p|a|a|p|da|p|da|da)
+
+- Camo Red (NORMAL) (Grey Wolf) (16/4/a|a|a|a|p|a|a|a|a|p)
+- Pink (NORMAL) (Lycantrope) (72/12/e|a|p|e|a|p|e|da|p|da)
+
+- White (ELITE) (52/5/a|p|a|p|a|p|a|p|a|p)
+- Black (ELITE) (52/5/p|a|p|a|p|a|p|a|p|a)
+
+- Zebra (BOSS) (Splits into 1 white and 1 black) (128/8/p|a|a|a|a|p|a|a|a|a)

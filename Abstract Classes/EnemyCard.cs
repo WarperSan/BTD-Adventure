@@ -1,46 +1,15 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Managers;
+using BTDAdventure.Enemy_Actions;
 using Il2Cpp;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace BTDAdventure.Cards;
+namespace BTDAdventure.Cards.EnemyCards;
 
 public abstract class EnemyCard
 {
-    #region Constants
-    public const string ArmorTag = "ARMOR";
-    public const string AttackTag = "ATTACK";
-    public const string ShieldTag = "SHIELD";
-
-    public const string BurnTag = "BURN";
-    public const string PoisonTag = "POISON";
-    public const string WeakTag = "WEAK";
-    #endregion
-
-    private readonly static Dictionary<string, int> Stats = new()
-    {
-        [ArmorTag] = default,
-        [AttackTag] = default,
-        [ShieldTag] = default,
-
-        [BurnTag] = default,
-        [PoisonTag] = default,
-    };
-
-    public static void AddTag(string tag, int value = default)
-    {
-        if (!Stats.ContainsKey(tag))
-            Stats.Add(tag, value);
-        else
-            Stats[tag] = value;
-    }
-
-    private readonly string[] Intents;
-
     private readonly GameObject? uiObject;
 
     public EnemyCard(
@@ -51,7 +20,7 @@ public abstract class EnemyCard
     {
         uiObject = enemyObject;
 
-        this.Position = position;
+        Position = position;
 
         #region UI
         if (uiObject != null)
@@ -86,7 +55,7 @@ public abstract class EnemyCard
             #region Button
             uiObject.GetComponent<Button>().onClick.SetListener(new Function(() =>
             {
-                GameManager.Instance.SelectEnemy(this.Position);
+                Instance.SelectEnemy(Position);
             }));
             #endregion
 
@@ -204,7 +173,7 @@ public abstract class EnemyCard
 
         if (Health <= 0)
         {
-            GameManager.Instance.KillEnemy(Position); // they kill themselves :(
+            Instance.KillEnemy(Position); // they kill themselves :(
         }
     }
 
@@ -246,14 +215,19 @@ public abstract class EnemyCard
     private Image? _intentIcon;
     private NK_TextMeshProUGUI? _intentText;
 
+    private readonly string[]? Intents;
+
     public string? Intent { get; private set; } = null;
     private int _currentIndex = -1;
 
-    // Update intent (string)
-    // Display intent (Icon + Text)
-
     public void MoveIntent()
     {
+        if (Intents == null)
+        {
+            Log("No intents defined.");
+            return;
+        }
+
         _currentIndex++;
 
         if (_currentIndex >= Intents.Length)
@@ -265,7 +239,7 @@ public abstract class EnemyCard
 
     public void SetIntent(string? value)
     {
-        this.Intent = value;
+        Intent = value;
     }
 
     protected virtual void SetUpIntentUI()
@@ -302,18 +276,19 @@ public abstract class EnemyCard
 
     private void UpdateIntent()
     {
-        EnemyAction? action = GameManager.Instance.GetIntentAction(Intent);
+        EnemyAction action = Instance.GetIntentAction(Intent) ?? new EmptyAction();
 
-        if (action == null)
+        if (Intent == PlaceHolder)
         {
-            return;
+            // typeof(this) will give EnemyCard, not Red or Blue (e.g.)
+            Log($"A placeholder action was found in the enemy card with the portrait \'{this.Portrait}\'.");
         }
 
         int containerLeftPadding = 30;
 
         if (_intentText != null)
         {
-            string? text = action.GetText();
+            string? text = action.GetText(this);
             _intentText.text = text;
             _intentText.gameObject.SetActive(!string.IsNullOrEmpty(text));
 
@@ -336,16 +311,32 @@ public abstract class EnemyCard
 
     internal void ExecuteIntent()
     {
-        EnemyAction? action = GameManager.Instance.GetIntentAction(Intent);
+        EnemyAction? action = Instance.GetIntentAction(Intent);
 
         if (action != null)
         {
             action.OnAction(this);
-            uiObject?.GetComponent<Animator>().Play(action.AnimationName, 0);
+
+            if (!string.IsNullOrEmpty(action.AnimationName))
+                uiObject?.GetComponent<Animator>().Play(action.AnimationName, 0);
         }
         else
             Log($"No action was registered with the tag \'{Intent ?? "null"}\'");
     }
+    #endregion
+
+    #region Attack
+    /// <summary>
+    /// Base amount of damage 
+    /// </summary>
+    protected abstract int Damage { get; }
+
+    /// <returns>Amount of damage that an attack would deal</returns>
+    internal int GetAttack()
+    {
+        return Damage;
+    }
+
     #endregion
 
     #region Background
@@ -373,24 +364,4 @@ public abstract class RegularBloon : EnemyCard
 {
     protected RegularBloon(GameObject? enemyObject, int position, params string[] actions)
         : base(enemyObject, position, new Vector2(4, 4), actions) { }
-}
-
-public class RedBloon : RegularBloon
-{
-    public RedBloon(GameObject? enemyObject, int position) :
-        base(enemyObject, position, EnemyAction.WaitTag)
-    { }
-
-    protected override int DefaultMaxHP => 10;
-    protected override string? Portrait => VanillaSprites.Red;
-}
-
-public class BlueBloon : RegularBloon
-{
-    public BlueBloon(GameObject? enemyObject, int position)
-        : base(enemyObject, position, EnemyAction.WaitTag, EnemyAction.WaitTag, EnemyAction.AttackTag)
-    { }
-
-    protected override int DefaultMaxHP => 25;
-    protected override string? Portrait => VanillaSprites.Blue;
 }

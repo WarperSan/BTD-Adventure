@@ -1,21 +1,18 @@
 List of things to do
 
 Very important:
-- Replace curtain bottom
-- Replace curtain top
-- Replace reward ui title bg
-- Replace reward item banner
-- Replace reward bg
-
 - Choose card
 - Choose enemy target
 - Card management
   - Remove played card
   - Refill hand
   - Empty discard if necessary
-- Reward screen
-- Enemy generator
+- Generate rewards
 - Level generator
+- Replace curtain bottom
+- Replace curtain top
+- Replace reward ui title bg
+- Replace reward item banner
 
 Fairly important:
 - Disable all keybinds (or redirect some)
@@ -39,3 +36,5 @@ Complete:
   - Remove mana when card played
   - Prevent play if no more mana  
 - Damage enemy
+- Replace reward bg
+- Enemy generator (Picks a random group and spawns it)

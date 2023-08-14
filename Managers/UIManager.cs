@@ -1,7 +1,7 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Cards;
+using BTDAdventure.Cards.EnemyCards;
 using BTDAdventure.Cards.HeroCard;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
@@ -77,6 +77,10 @@ internal class UIManager
         VictoryUI = mainUI.Find("VictoryUI").gameObject;
         VictoryBtn = VictoryUI?.GetComponent<Button>();
         VictoryBtn?.onClick.SetListener(new Function(GameManager.Instance.VictoryUIClose));
+
+        if (VictoryUI != null) InitializeText(VictoryUI.transform.Find("Banner/Text"), 225, 
+            font: Fonts.Btd6FontTitle, 
+            initialText: "VICTORY");
     }
     #endregion
 
@@ -117,8 +121,8 @@ internal class UIManager
 
             if (buttonT != null)
             {
-                buttonT.gameObject.GetComponent<Image>().SetSprite(VanillaSprites.ParagonBtnLong);
-                InitializeText(buttonT.Find("Text"), 75, font: Fonts.Btd6FontBody, initialText: "SELECT");
+                buttonT.gameObject.GetComponent<Image>().SetSprite(VanillaSprites.GreenBtnLong);
+                InitializeText(buttonT.Find("Text"), 75, font: Fonts.Btd6FontTitle, initialText: "SELECT");
             }
 
             RewardCardPrefab.transform.Find("InfoBtn").GetComponent<Image>().SetSprite(VanillaSprites.InfoBtn2);
@@ -284,9 +288,6 @@ internal class UIManager
 
     internal EnemyCard? AddEnemy(Type t, int position)
     {
-        if (!GameManager.Instance.IsEnemyTypeValid(t))
-            return null;
-
         if (EnemyCardsHolder == null)
         {
             Log("\'EnemyCardsHolder\' was not defined.");
@@ -304,6 +305,7 @@ internal class UIManager
             }
 
             enemyObject.SetActive(true);
+            //SetEnemyState(true, position);
 
             return (EnemyCard?)Activator.CreateInstance(t, enemyObject, position);
         }
@@ -313,6 +315,8 @@ internal class UIManager
             throw;
         }
     }
+    internal void SetEnemyState(bool state, int position) => EnemiesObject[position]?.SetActive(state);
+
     internal void KillEnemy(int position) => EnemiesObject[position]?.SetActive(false);
 
     internal static GameObject? InitializeEnemyPrefab()

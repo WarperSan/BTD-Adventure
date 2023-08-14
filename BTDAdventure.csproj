@@ -17,6 +17,7 @@
     </PropertyGroup>
     <ItemGroup>
       <None Remove="Bundles\btdadventure.bundle" />
+      <None Remove="enemy_groups.xml" />
       <None Remove="Images\Icons\btdadventure.bundle" />
       <None Remove="Images\Icons\intent_damage.png" />
       <None Remove="Images\Icons\intent_damage_double.png" />
@@ -26,6 +27,12 @@
     </ItemGroup>
 
     <Import Project="..\btd6.targets" />
+
+    <ItemGroup>
+		<EmbeddedResource Include="Resources\enemy_groups.xml">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</EmbeddedResource>
+    </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Update="Images\Icons\intent_damage.png">
@@ -43,5 +50,9 @@
       <EmbeddedResource Update="Images\Icons\intent_shield-1.png">
         <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       </EmbeddedResource>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Cards\Heroes\" />
     </ItemGroup>
 </Project>

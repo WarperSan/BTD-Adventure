@@ -16,14 +16,26 @@ public class WarriorClass : RogueClass
     {
         return new List<HeroCard>()
         {
-            new Test1(),
-            new Test2(),
-            new Test3(),
-            new Test4(),
-            new Test1(),
-            new Test2(),
-            new Test3(),
-            new Test4(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            new MonkeyAce000(),
+            /*
+            new DartMonkey000(),
+            new DartMonkey000(),
+            new DartMonkey000(),
+            new DartMonkey000(),
+
+            new MonkeyVillage000(),
+            new MonkeyVillage000(),
+
+            new SuperMonkey000(),
+
+            new MonkeyAce000(),*/
         };
     }
 }

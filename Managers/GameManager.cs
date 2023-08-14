@@ -1,8 +1,10 @@
 ﻿global using static BTDAdventure.Managers.GameManager;
 global using IEnumerator = System.Collections.IEnumerator;
+global using static BTDAdventure.EnemyAction;
 
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
-using BTDAdventure.Cards;
+using BTDAdventure.Cards.EnemyCards;
 using BTDAdventure.Cards.HeroCard;
 using Il2CppInterop.Runtime.InteropTypes;
 using System;
@@ -26,8 +28,9 @@ internal class GameManager
 
     internal void Initialize()
     {
-        EnemiesTypes = InitializeAirport<EnemyCard>();
+        //EnemiesTypes = InitializeAirport<EnemyCard>();
         HeroTypes = InitializeAirport<HeroCard>();
+        this.EnemyManager = new();
 
         RegisterActions();
 
@@ -36,7 +39,7 @@ internal class GameManager
     }
 
     #region Static
-    private static Type[] InitializeAirport<T>()
+    internal static Type[] InitializeAirport<T>()
     {
         try
         {
@@ -82,7 +85,7 @@ internal class GameManager
         return result != null;
     }
 
-    private static bool IsGivenTypeInArray<T>(Type[]? array, Type t, bool sendErrorMessage)
+    internal static bool IsGivenTypeInArray<T>(Type[]? array, Type t, bool sendErrorMessage)
     {
         if (array == null)
             return false;
@@ -162,6 +165,7 @@ internal class GameManager
 
     #region Managers
     private UIManager? UiManager;
+    private EnemyManager? EnemyManager;
     #endregion
 
     internal void StartGame()
@@ -275,9 +279,25 @@ internal class GameManager
 
     private void PopulateEnemies()
     {
-        AddEnemy(typeof(RedBloon));
-        AddEnemy(typeof(BlueBloon));
-        AddEnemy(typeof(RedBloon));
+        if (this.EnemyManager != null)
+        {
+            Type?[] enemies = this.EnemyManager.GenerateEnemies("normal", "forest");
+
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                Type? item = enemies[i];
+
+                if (item == null)
+                {
+                    UiManager?.SetEnemyState(false, i);
+                    continue;
+                }
+
+                AddEnemy(item);
+            }
+        }
+        else
+            Log("Enemy Manager was not defined.");
     }
 
     private void StartPlayerTurn()
@@ -392,6 +412,18 @@ internal class GameManager
     internal uint coins;
     internal uint bjms;
 
+    internal void AddCoins(uint amount)
+    {
+        coins += amount;
+        UiManager?.UpdateCashText();
+    }
+
+    internal void AddBloonjamins(uint amount)
+    {
+        bjms += amount;
+        UiManager?.UpdateBloonjaminsText();
+    }
+
     #region Health
     internal int Health = 50;
     internal int MaxHealth = 50;
@@ -434,11 +466,11 @@ internal class GameManager
     #endregion
 
     #region Enemy
-    private Type[]? EnemiesTypes;
-    public bool IsEnemyTypeValid(Type t, bool sendErrorMessage = true) => IsGivenTypeInArray<EnemyCard>(EnemiesTypes, t, sendErrorMessage);
-
-    public void AddEnemy(Type enemyType)
+    internal void AddEnemy(Type enemyType)
     {
+        if (EnemyManager != null && !EnemyManager.IsEnemyTypeValid(enemyType))
+            return;
+
         int position = -1;
 
         for (int i = 0; i < _enemies.Length; i++)
@@ -468,11 +500,7 @@ internal class GameManager
         EnemyCard? enemyKilled = _enemies[position];
 
         if (enemyKilled != null)
-        {
-            coins += enemyKilled.coinsGiven;
-
-            UiManager?.UpdateCashText();
-        }
+            AddCoins(enemyKilled.coinsGiven);
 
         _enemies[position] = null;
         UiManager?.KillEnemy(position);
@@ -483,7 +511,7 @@ internal class GameManager
         EndFight();
     }
 
-    public EnemyAction? GetIntentAction(string? intent)
+    internal EnemyAction? GetIntentAction(string? intent)
     {
         if (intent == null)
             return null;
@@ -601,7 +629,7 @@ internal class GameManager
     }
     public static void Log(object? obj, [CallerMemberName] string source = "")
     {
-        Console.WriteLine($"[{source}] {obj ?? "null"}");
+        ModHelper.GetMod<BTDAdventure>().LoggerInstance.Msg($"[{source}] {obj ?? "null"}");
     }
     #endregion
 }
