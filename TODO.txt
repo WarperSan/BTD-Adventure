@@ -3,25 +3,32 @@ List of things to do
 Very important:
 - Choose card
 - Choose enemy target
-- Card management
-  - Remove played card
-  - Refill hand
-  - Empty discard if necessary
 - Generate rewards
 - Level generator
-- Replace curtain bottom
-- Replace curtain top
-- Replace reward ui title bg
-- Replace reward item banner
 
 Fairly important:
+- Immune effect
+- Overcharge effect
+- Resistance effect
+- Thorns effect
+- Burn effect
+- Poison effect
+- Block effect
+- Curse effect
+- Frail effect
+- Silence effect
+- Wound effect
 - Disable all keybinds (or redirect some)
 - Merchant screen (copy the btd6 shop)
 
 Slightly important:
+- Fix enemy HP bar on death
 - Class selection menu
-- Buffs/Debuffs system
 - Save file system
+- Replace curtain bottom
+- Replace curtain top
+- Replace reward ui title bg
+- Replace reward item banner
 
 Not important:
 - Background blur
@@ -38,3 +45,14 @@ Complete:
 - Damage enemy
 - Replace reward bg
 - Enemy generator (Picks a random group and spawns it)
+- Card management
+  - Remove played card
+  - Refill hand
+  - Empty discard if necessary
+- Enemy Death Animation
+- No infinite battles
+- Enemy Shield
+- Weakness effect
+- x2 Damage effect
+- Strength effect
+- Armored effect

@@ -1,24 +1,25 @@
-﻿using BTD_Mod_Helper;
-using BTD_Mod_Helper.Api;
+﻿global using static BTDAdventure.EnemyAction;
+global using static BTDAdventure.Managers.GameManager;
+global using static BTDAdventure.Managers.UIManager;
+global using BTDAdventure.Cards.Enemies;
+global using IEnumerator = System.Collections.IEnumerator;
+global using BTDAdventure.Cards.EnemyCards;
+global using BTDAdventure.Cards.HeroCard;
+
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure;
-using BTDAdventure.Cards;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using MelonLoader;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-[assembly: MelonInfo(typeof(BTDAdventure.BTDAdventure), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
-[assembly: MelonGame("Ninja Kiwi", "BloonsTD6")]
+[assembly: MelonLoader.MelonInfo(typeof(BTDAdventure.BTDAdventure), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
+[assembly: MelonLoader.MelonGame("Ninja Kiwi", "BloonsTD6")]
 
 namespace BTDAdventure;
 
@@ -37,24 +38,6 @@ namespace BTDAdventure;
 // Update enemies intent
 // Repeat until end of fight or death
 
-
-// Things
-// Hand
-// Draw pile
-// Discard pile
-// Exile pile
-// Player HP
-// Max HP
-// Enemy HP
-// Mana
-// Enemy intent
-// Buffs
-// Status Effects
-// Debuffs
-
-// The card attack will be done by the PlayerEntity. 
-
-
 public class BTDAdventure : BloonsTD6Mod
 {
     public static ModSettingDouble EnemySpeed = new(0.25)
@@ -67,8 +50,6 @@ public class BTDAdventure : BloonsTD6Mod
     public override void OnApplicationStart()
     {
         GameManager.Instance.Initialize();
-
-        //drawPile = new WarriorClass().InitialCards();
     }
 
     private bool _wasFromMe = false;
@@ -133,6 +114,7 @@ public class BTDAdventure : BloonsTD6Mod
         GameObject btdAdBtn = GameObject.Instantiate(buttonOG, buttonHolder);
         btdAdBtn.name = "BTD Adventure BTN";
         btdAdBtn.GetComponentInChildren<NK_TextMeshProUGUI>().localizeKey = "KYS";
+        //btdAdBtn.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LoadingCloudPuff);
 
         // Change Icon
 

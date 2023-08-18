@@ -1,27 +1,25 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Cards.EnemyCards;
-using BTDAdventure.Cards.HeroCard;
+using BTDAdventure.Entities;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using Il2CppTMPro;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
 
 namespace BTDAdventure.Managers;
 
 internal class UIManager
 {
     #region Constants
-    const string ValuesPath = "Overlay/TopPanel/Values";
+    public const string ValuesPath = "Overlay/TopPanel/Values";
     public const string DamageIcon = "Ui[BTDAdventure-intent_damage]";
     public const string DoubleDamageIcon = "Ui[BTDAdventure-intent_damage_double]";
-    public const string CurseIcon = "Ui[BTDAdventure-negate]";
+    public const string CurseIcon = "Ui[BTDAdventure-intent_negate]";
     public const string WaitIcon = "Ui[BTDAdventure-intent_pause]";
-    public const string ShieldIcon = "Ui[BTDAdventure-shield-1]";
+    public const string ShieldIcon = "Ui[BTDAdventure-intent_shield-1]";
 
     public const float TopValueFontSize = 125;
     #endregion
@@ -34,14 +32,14 @@ internal class UIManager
 
     private GameObject? LoadingScreen;
 
-    public void SetUpMainUI()
+    public Transform? SetUpMainUI()
     {
         SetActiveUiRect(false);
 
         GameObject? mainUIprefab = GameManager.LoadAsset<GameObject>("BTDAdventureUI");
 
         if (mainUIprefab == null)
-            return;
+            return null;
 
         Transform mainUI = UnityEngine.Object.Instantiate(mainUIprefab, InGame.instance.GetInGameUI().transform).transform;
 
@@ -57,15 +55,19 @@ internal class UIManager
         EndTurnBtn = mainUI.Find("Overlay/Button").GetComponent<Button>();
         EndTurnBtn.onClick.AddListener(new Function(GameManager.Instance.EndTurn));
 
+        // Enemies
+        EnemyCardPrefab = InitializeEnemyPrefab();
+
         // Create enemies objects
         for (int i = 0; i < EnemiesObject.Length; i++)
         {
-            EnemiesObject[i] = UnityEngine.Object.Instantiate(GameManager.Instance.EnemyCardPrefab, EnemyCardsHolder);
+            EnemiesObject[i] = UnityEngine.Object.Instantiate(EnemyCardPrefab, EnemyCardsHolder);
         }
+        // ---
 
         mainUI.Find("Overlay/TopPanel/Settings").GetComponent<Image>().SetSprite(VanillaSprites.SettingsBtn);
 
-        SetUpTexts(mainUI);
+        return mainUI;
     }
 
     #region Victory UI
@@ -105,7 +107,7 @@ internal class UIManager
 
     internal static GameObject? InitializeRewardPrefab()
     {
-        GameObject? RewardCardPrefab = GameManager.Instance.RewardCardPrefab ?? Object.Instantiate(LoadAsset<GameObject>("Reward"));
+        GameObject? RewardCardPrefab = GameManager.Instance.RewardCardPrefab ?? GameObject.Instantiate(LoadAsset<GameObject>("Reward"));
 
         if (RewardCardPrefab != null)
         {
@@ -131,65 +133,6 @@ internal class UIManager
     }
     #endregion
 
-    #region Texts
-    private NK_TextMeshProUGUI? HealthText;
-    private NK_TextMeshProUGUI? CashText;
-    private NK_TextMeshProUGUI? BloonjaminsText;
-    private NK_TextMeshProUGUI? ManaText;
-
-    /// <summary>
-    /// Causes the health text to update itself
-    /// </summary>
-    public void UpdateHealthText() => UpdateText(GameManager.Instance.Health + " / " + GameManager.Instance.MaxHealth, HealthText);
-
-    /// <summary>
-    /// Causes the cash text to update itself
-    /// </summary>
-    public void UpdateCashText() => UpdateText(GameManager.Instance.coins, CashText);
-
-    /// <summary>
-    /// Causes the bloonjamins text to update itself
-    /// </summary>
-    public void UpdateBloonjaminsText() => UpdateText(GameManager.Instance.bjms, BloonjaminsText);
-
-    /// <summary>
-    /// Causes the mana text to update itself
-    /// </summary>
-    public void UpdateManaText() => UpdateText(GameManager.Instance.Mana + "/" + GameManager.Instance.MaxMana, ManaText);
-
-    private static void UpdateText(object? content, NK_TextMeshProUGUI? text)
-    {
-        if (text == null)
-        {
-            Log("The given text component is null.");
-            return;
-        }
-
-        text.text = content == null ? "null" : content.ToString();
-    }
-
-    private void SetUpTexts(Transform mainUI)
-    {
-        //Fonts.Btd6FontTitle
-        // Health
-        GameObject health = mainUI.Find(ValuesPath + "/Health").gameObject;
-        health.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LivesIcon);
-        HealthText = InitializeText(health.transform.Find("Text"), TopValueFontSize);
-
-        // Cash (coins)
-        GameObject cash = mainUI.Find(ValuesPath + "/Cash").gameObject;
-        cash.GetComponentInChildren<Image>().SetSprite(VanillaSprites.CoinIcon);
-        CashText = InitializeText(cash.transform.Find("Text"), TopValueFontSize);
-
-        // Bloonjamins (gems)
-        GameObject bloonjamins = mainUI.Find(ValuesPath + "/Bloonjamins").gameObject;
-        bloonjamins.GetComponentInChildren<Image>().SetSprite(VanillaSprites.BloonjaminsIcon);
-        BloonjaminsText = InitializeText(bloonjamins.transform.Find("Text"), TopValueFontSize);
-
-        // Mana
-        ManaText = InitializeText(mainUI.Find("GameUI/Mana/Text"), 125, font: Fonts.Btd6FontBody);
-    }
-
     internal static NK_TextMeshProUGUI? InitializeText(
         Transform @object,
         float fontSize,
@@ -213,10 +156,9 @@ internal class UIManager
 
         return text;
     }
-    #endregion
 
-    #region Player
-    public void InitPlayerCards()
+    #region Player Cards
+    internal void InitPlayerCards()
     {
         if (GameManager.Instance.PlayerCardPrefab == null)
             return;
@@ -246,7 +188,7 @@ internal class UIManager
         }
     }
 
-    public void SetUpPlayerCard(int index, HeroCard heroCard, bool swingAnimation)
+    internal void SetUpPlayerCard(int index, HeroCard heroCard, bool swingAnimation)
     {
         if (index < 0 || index >= PlayerCards.Length)
         {
@@ -271,7 +213,7 @@ internal class UIManager
             MelonLoader.MelonCoroutines.Start(SwingCard(selectedCard));
     }
 
-    public void SetLockState(bool state)
+    internal void SetLockState(bool state)
     {
         foreach (var item in PlayerCards)
         {
@@ -284,9 +226,11 @@ internal class UIManager
     #endregion
 
     #region Enemy
+    private GameObject? EnemyCardPrefab;
+
     private readonly GameObject?[] EnemiesObject = new GameObject?[MaxEnemiesCount];
 
-    internal EnemyCard? AddEnemy(Type t, int position)
+    internal EnemyEntity? AddEnemy(Type t, int position)
     {
         if (EnemyCardsHolder == null)
         {
@@ -304,10 +248,11 @@ internal class UIManager
                 return null;
             }
 
+            enemyObject.GetComponent<Button>().enabled = true;
             enemyObject.SetActive(true);
             //SetEnemyState(true, position);
 
-            return (EnemyCard?)Activator.CreateInstance(t, enemyObject, position);
+            return new EnemyEntity(enemyObject, position, t);
         }
         catch (Exception e)
         {
@@ -317,16 +262,18 @@ internal class UIManager
     }
     internal void SetEnemyState(bool state, int position) => EnemiesObject[position]?.SetActive(state);
 
-    internal void KillEnemy(int position) => EnemiesObject[position]?.SetActive(false);
+    internal void KillEnemy(int position) => MelonLoader.MelonCoroutines.Start(EnemyDies(position));
 
     internal static GameObject? InitializeEnemyPrefab()
     {
-        GameObject? EnemyCardPrefab = GameManager.Instance.EnemyCardPrefab ?? Object.Instantiate(LoadAsset<GameObject>("EnemyCard"));
+        GameObject? EnemyCardPrefab = GameObject.Instantiate(LoadAsset<GameObject>("EnemyCard"));
 
         if (EnemyCardPrefab != null)
         {
             InitializeText(EnemyCardPrefab.transform.Find("Intent/Text"), 50, initialText: "yuh uh");
             InitializeText(EnemyCardPrefab.transform.Find("HP/TextHolder/Text"), 25, initialText: "nuh uh");
+
+            //EnemyCardPrefab.transform.Find("Shield")?.GetComponent<Image>().SetSprite(UIManager.ShieldIcon);
         }
         return EnemyCardPrefab;
     }
@@ -337,7 +284,18 @@ internal class UIManager
 
     internal static void SetActiveUiRect(bool isActive)
     {
-        InGame.instance.uiRect.gameObject.SetActive(isActive);
+        //InGame.instance.uiRect.gameObject.SetActive(isActive);
+
+        for (int i = 0; i < InGame.instance.uiRect.childCount; ++i)
+        {
+            GameObject @object = InGame.instance.uiRect.GetChild(i).gameObject;
+
+            if (@object.name == "BlackBars(Clone)")
+                continue;
+
+            @object.SetActiveRecursively(false);
+        }
+
 #if DEBUG
         Log($"InGameUI is now {(isActive ? "active" : "inactive")}.");
 #endif
@@ -345,6 +303,11 @@ internal class UIManager
     #endregion
 
     #region Coroutines
+    /// <summary>
+    /// Causes the loading screen to appear
+    /// </summary>
+    /// <param name="preLoad">Called before the fade in starts</param>
+    /// <param name="postLoad">Called before the fade out starts</param>
     public void UseLoading(Action? preLoad = null, Action? postLoad = null) => MelonLoader.MelonCoroutines.Start(UseLoadingCoroutine(preLoad, postLoad));
 
     private IEnumerator UseLoadingCoroutine(Action? preLoad = null, Action? postLoad = null)
@@ -382,6 +345,27 @@ internal class UIManager
         SetLockState(false, card);
 
         animator.Play("PlayerCardRightSwig");
+    }
+
+    IEnumerator EnemyDies(int position)
+    {
+        GameObject? enemy = EnemiesObject[position];
+
+        if (enemy != null)
+        {
+            enemy.GetComponent<Button>().enabled = false;
+
+            Animator animator = enemy.GetComponent<Animator>();
+
+            animator.Play("EnemyDie");
+
+            yield return new WaitForEndOfFrame(); // Wait for load
+            yield return new WaitForSeconds(0.6667f); // Wait for animation
+
+            SetEnemyState(false, position);
+        }
+        else
+            yield return new WaitForEndOfFrame();
     }
     #endregion
 }

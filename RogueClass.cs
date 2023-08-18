@@ -16,14 +16,14 @@ public class WarriorClass : RogueClass
     {
         return new List<HeroCard>()
         {
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
-            new MonkeyAce000(),
+            new DartMonkey000(),
+            new DartMonkey000(),
+            new DartMonkey000(),
+            new DartMonkey000(),
+            new WizardMonkey000(),
+            new MonkeyVillage000(),
+            new MonkeyVillage000(),
+            new MonkeyVillage000(),
             /*
             new DartMonkey000(),
             new DartMonkey000(),

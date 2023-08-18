@@ -1,8 +1,4 @@
-﻿# BLOONS (Type|World) HP / ATK
-- Red (Normal|Forest) 16 / 3 (ADDED)
-- Blue (Normal|Forest) 24 / 4 (ADDED)
-
-Forest
+﻿Forest
 - Forest Sprite (normal)
 - Caterpillar (normal)
 - Butterfly Cocoon (normal)

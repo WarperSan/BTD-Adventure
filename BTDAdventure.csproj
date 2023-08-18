@@ -16,8 +16,10 @@
       <LangVersion>preview</LangVersion>
     </PropertyGroup>
     <ItemGroup>
-      <None Remove="Bundles\btdadventure.bundle" />
+      <None Remove="btdadventure.bundle" />
       <None Remove="enemy_groups.xml" />
+      <None Remove="Images\Effects\icon_enemy_weak.png" />
+      <None Remove="Images\Effects\icon_permashield.png" />
       <None Remove="Images\Icons\btdadventure.bundle" />
       <None Remove="Images\Icons\intent_damage.png" />
       <None Remove="Images\Icons\intent_damage_double.png" />
@@ -53,6 +55,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Bundles\" />
       <Folder Include="Cards\Heroes\" />
     </ItemGroup>
 </Project>

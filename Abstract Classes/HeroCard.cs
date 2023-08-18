@@ -1,6 +1,9 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
+using BTDAdventure.Abstract_Classes;
+using BTDAdventure.Effects;
 using BTDAdventure.Managers;
 using Il2CppAssets.Scripts.Models.TowerSets;
+using Il2CppAssets.Scripts.Simulation.Towers.Behaviors;
 
 namespace BTDAdventure.Cards.HeroCard;
 
@@ -41,11 +44,21 @@ public abstract class HeroCard
 #endif
     }
 
-    // Race
-    public void AddRaceCounter()
-    {
+    #region Attack
+    protected static void AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
+    protected static void AttackEnemy(Damage damage) => GameManager.Instance.AttackEnemy(damage);
+    protected static void AttackAllEnemies(int amount) => AttackAllEnemies(new Damage(amount));
+    protected static void AttackAllEnemies(Damage damage) => GameManager.Instance.AttackAllEnemies(damage);
+    #endregion
 
-    }
+    #region Effect
+    protected static void AddLevelPlayer<T>(int amount) where T : Effect => GameManager.Instance.AddLevelPlayer(typeof(T), amount);
+    protected static void AddLevelEnemy<T>(int amount) where T : Effect => GameManager.Instance.AddLevelEnemy(typeof(T), amount);
+    #endregion
+
+    #region Shield
+    protected static void AddShield(int amount) => GameManager.Instance.Player?.AddShield(amount);
+    #endregion
 }
 
 public class DartMonkey000 : HeroCard
@@ -57,20 +70,22 @@ public class DartMonkey000 : HeroCard
 
     public override void PlayCard()
     {
-        GameManager.Instance.AttackEnemy(1);
+        //AddLevelPlayer<DoubleDamageEffect>(4);
+        AttackEnemy(6);
     }
 }
 
-public class SuperMonkey000 : HeroCard
+public class WizardMonkey000 : HeroCard
 {
-    public override string Portrait => VanillaSprites.SuperMonkey000;
+    public override string Portrait => VanillaSprites.Wizard000;
     public override TowerSet? Type => TowerSet.Magic;
 
-    public override string DisplayName => "Base Super Monkey";
+    public override string DisplayName => "Base Wizard Monkey";
 
     public override void PlayCard()
     {
-        GameManager.Instance.AttackAllEnemies(3);
+        AddLevelEnemy<WeaknessEffect>(3);
+        AttackEnemy(3);
     }
 }
 
@@ -80,17 +95,9 @@ public class MonkeyVillage000 : HeroCard
     public override TowerSet? Type => TowerSet.Support;
 
     public override string DisplayName => "Base Monkey Village";
-}
-
-public class MonkeyAce000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.MonkeyAce000;
-    public override TowerSet? Type => TowerSet.Military;
-
-    public override string DisplayName => "Base Monkey Ace";
 
     public override void PlayCard()
     {
-        GameManager.Instance.AttackAllEnemies(8);
+        AddShield(6);
     }
 }

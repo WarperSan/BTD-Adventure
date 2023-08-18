@@ -1,15 +1,16 @@
-﻿using BTDAdventure.Cards.EnemyCards;
-using BTDAdventure.Managers;
+﻿using BTDAdventure.Abstract_Classes;
+using BTDAdventure.Abstract_Classes.EnemyActions;
+using BTDAdventure.Entities;
 
 namespace BTDAdventure.Enemy_Actions;
 
-internal class AttackAction : EnemyAction
+internal class AttackAction : IntentAttackAction
 {
-    public AttackAction() : base(Attack, 0, "IntentAttack", UIManager.DamageIcon) { }
+    public AttackAction() : base(Attack, 0, DamageIcon) { }
 
-    public override string? GetText(EnemyCard source) => source.GetAttack().ToString();
-    public override void OnAction(EnemyCard source)
+    public override string? GetText(EnemyEntity source) => source.GetAttack().ToString();
+    public override void OnAction(EnemyEntity source, PlayerEntity player)
     {
-        GameManager.Instance.DamagePlayer(new Damage(source.GetAttack()));
+        source.AttackTarget(player);
     }
 }

@@ -1,9 +1,7 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Cards.HeroCard;
 using Il2Cpp;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,7 +16,9 @@ internal class RewardManager
         this.UiManager = uIManager;
     }
 
-    internal List<GameObject?> _rewardsObj = new();
+    internal System.Collections.Generic.List<GameObject?> _rewardsObj = new();
+
+    int rewardIndex = -1;
 
     internal void OpenRewardUI()
     {
@@ -66,7 +66,7 @@ internal class RewardManager
         };
         rewards[2] = new Reward()
         {
-            HeroCard = typeof(MonkeyAce000)
+            HeroCard = typeof(WizardMonkey000)
         };
         rewards[3] = new Reward()
         {
@@ -76,6 +76,11 @@ internal class RewardManager
         return rewards;
     }
 
+    /*
+     * 
+
+    */
+
     private void SetUpReward(int index, Reward? reward)
     {
         if (!reward.HasValue)
@@ -84,7 +89,11 @@ internal class RewardManager
         GameObject? r = GameObject.Instantiate(GameManager.Instance.RewardCardPrefab, UiManager?.RewardHolder);
         r?.GetComponentInChildren<Button>().onClick.AddListener(new Function(() =>
         {
-            SelectReward(index);
+            if (rewardIndex != -1)
+                return;
+
+            rewardIndex = index;
+            CloseRewardUI();
         }));
 
         _rewardsObj.Add(r);
@@ -98,19 +107,6 @@ internal class RewardManager
         r.transform.Find("Banner/TextHolder/Text").GetComponent<NK_TextMeshProUGUI>().text = title;
     }
 
-    private void SelectReward(int index)
-    {
-        if (_rewards != null)
-        {
-            Reward? reward = _rewards[index];
-
-            if (reward.HasValue)
-                reward.Value.CollectReward();
-        }
-
-        CloseRewardUI();
-    }
-
     private void CloseRewardUI()
     {
         // Removes the possibility of nulls
@@ -119,8 +115,16 @@ internal class RewardManager
 
         UiManager?.UseLoading(postLoad: new Action(() =>
         {
+            if (_rewards != null)
+            {
+                Reward? reward = _rewards[rewardIndex];
+
+                if (reward.HasValue)
+                    reward.Value.CollectReward(); // Give in the black screen
+            }
+
             // Delete all rewards
-            foreach (var item in _rewardsObj) { item.Destroy(); }
+            foreach (var item in _rewardsObj) { GameObject.Destroy(item); }
             _rewardsObj.Clear();
 
             UiManager.RewardUI?.SetActive(false);
@@ -137,19 +141,19 @@ internal class RewardManager
         public uint? Bloonjamins;
         public uint? Cash;
 
-        public void CollectReward()
+        internal void CollectReward()
         {
             if (Bloonjamins != null)
-                GameManager.Instance.AddBloonjamins(Bloonjamins.Value);
+                GameManager.Instance.Player?.AddBloonjamins(Bloonjamins.Value);
             else if (Cash != null)
-                GameManager.Instance.AddCoins(Cash.Value);
+                GameManager.Instance.Player?.AddCoins(Cash.Value);
             else if (HeroCard != null)
             {
                 // Add card
             }
         }
 
-        public void SetUpReward(out string? portrait, out string? title)
+        internal void SetUpReward(out string? portrait, out string? title)
         {
             portrait = null;
             title = null;

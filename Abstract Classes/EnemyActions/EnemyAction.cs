@@ -1,4 +1,4 @@
-﻿using BTDAdventure.Cards.EnemyCards;
+﻿using BTDAdventure.Entities;
 
 namespace BTDAdventure;
 
@@ -14,6 +14,8 @@ public abstract class EnemyAction : System.IComparable<EnemyAction>
     
     public const string Shield = "shield";
     public const string ShieldAll = "shieldall";
+
+    public const string Weakness = "weakness";
 
     /*
     h = HEAL
@@ -46,8 +48,8 @@ public abstract class EnemyAction : System.IComparable<EnemyAction>
         this.AnimationName = animationName;
     }
 
-    public virtual void OnAction(EnemyCard source) { }
-    public abstract string? GetText(EnemyCard source);
+    public virtual void OnAction(EnemyEntity source, PlayerEntity player) { }
+    public abstract string? GetText(EnemyEntity source);
 
     /// The biggest moves before the smallest
     public int CompareTo(EnemyAction? other) => this.Order.CompareTo(other?.Order);
