@@ -1,4 +1,4 @@
-﻿using BTDAdventure.Abstract_Classes;
+﻿using BTDAdventure.Abstract;
 using BTDAdventure.Managers;
 using System;
 
@@ -7,10 +7,10 @@ namespace BTDAdventure.Effects;
 /// <summary>
 /// Doubles the power of all attacks
 /// </summary>
-public class DoubleDamageEffect : Effect, IAttackEffect
+internal class DoubleDamageEffect : Effect, IAttackEffect
 {
-    protected override string? Image => throw new NotImplementedException();
-    public override string DisplayName => throw new NotImplementedException();
+    protected override string Name => throw new NotImplementedException();
+    protected override string? Image => UIManager.DoubleDamageIcon;
 
     public Damage ModifyDamage(Entity entity, Damage damage)
     {

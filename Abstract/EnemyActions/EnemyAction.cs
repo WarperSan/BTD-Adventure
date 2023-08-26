@@ -1,17 +1,18 @@
-﻿using BTDAdventure.Entities;
+﻿using BTD_Mod_Helper.Api;
+using BTDAdventure.Entities;
 
-namespace BTDAdventure;
+namespace BTDAdventure.Abstract;
 
-public abstract class EnemyAction : System.IComparable<EnemyAction>
+public abstract class EnemyAction : ModContent, System.IComparable<EnemyAction>
 {
     #region Constants
     public const string PlaceHolder = "placeholder";
 
     public const string Wait = "wait";
-    
+
     public const string Attack = "attack";
     public const string DoubleAttack = "doubleattack";
-    
+
     public const string Shield = "shield";
     public const string ShieldAll = "shieldall";
 
@@ -31,19 +32,14 @@ public abstract class EnemyAction : System.IComparable<EnemyAction>
     */
     #endregion
 
-    /// <summary>
-    /// Used to override existing actions.
-    /// </summary>
-    public uint Order { get; }
     public string? Icon { get; }
     public string Tag { get; }
 
     public string? AnimationName { get; }
 
-    public EnemyAction(string tag, uint order, string? animationName, string? icon = null)
+    public EnemyAction(string tag, string? animationName, string? icon = null)
     {
         this.Tag = tag;
-        this.Order = order;
         this.Icon = icon;
         this.AnimationName = animationName;
     }
@@ -53,6 +49,13 @@ public abstract class EnemyAction : System.IComparable<EnemyAction>
 
     /// The biggest moves before the smallest
     public int CompareTo(EnemyAction? other) => this.Order.CompareTo(other?.Order);
+
+    public override void Register()
+    {
+#if DEBUG
+        Log($"{Name} registered with tag \'{Tag}\'.");
+#endif
+    }
 }
 
 public struct Damage

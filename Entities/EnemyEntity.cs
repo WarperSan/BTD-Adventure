@@ -1,6 +1,5 @@
 ﻿
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Abstract_Classes;
 using BTDAdventure.Enemy_Actions;
 using BTDAdventure.Managers;
 using Il2Cpp;
@@ -126,12 +125,16 @@ public class EnemyEntity : Entity
     protected override void SetUpShieldUI(GameObject root)
     {
         ShieldImg = root.transform.Find("Shield")?.gameObject;
-        
+
         // Setting the sprite in the prefab doesn't work
-        ShieldImg?.GetComponent<Image>().SetSprite(UIManager.ShieldIcon); 
+        ShieldImg?.GetComponent<Image>().SetSprite(UIManager.ShieldIcon);
 
         if (ShieldImg != null)
-            ShieldText = InitializeText(ShieldImg.transform.Find("Text"), 25);
+        {
+            Transform textT = ShieldImg.transform.Find("Text");
+
+            ShieldText = textT.GetComponent<NK_TextMeshProUGUI>() ?? InitializeText(textT, 25);
+        }
     }
     #endregion
 
@@ -183,9 +186,9 @@ public class EnemyEntity : Entity
 
     private void UpdateIntent()
     {
-        EnemyAction action = Instance.GetIntentAction(Intent) ?? new EmptyAction();
+        EnemyAction action = GetIntentAction(Intent) ?? new EmptyAction();
 
-        if (Intent == PlaceHolder)
+        if (Intent == EnemyAction.PlaceHolder)
         {
             // typeof(this) will give EnemyCard, not Red or Blue (e.g.)
             Log($"A placeholder action was found in the enemy card with the portrait \'{Model?.Portrait}\'.");
@@ -219,30 +222,32 @@ public class EnemyEntity : Entity
             Log("Intent Icon was not found.");
     }
 
-    private void ExecuteIntent()
+    internal float ExecuteIntent()
     {
-        if (Model == null || Instance.Player == null)
-            return;
-
-        EnemyAction? action = Instance.GetIntentAction(Intent);
-
-        if (action != null)
+        if (Model != null && Instance.Player != null)
         {
-            action.OnAction(this, Instance.Player);
+            EnemyAction? action = GetIntentAction(Intent);
 
-            if (!string.IsNullOrEmpty(action.AnimationName))
-                _intentAnimator?.Play(action.AnimationName, 0);
+            if (action != null)
+            {
+                action.OnAction(this, Instance.Player);
+
+                if (!string.IsNullOrEmpty(action.AnimationName) && _intentAnimator != null)
+                {
+                    _intentAnimator.Play(action.AnimationName, 0);
+
+                    var clips = _intentAnimator.runtimeAnimatorController.animationClips;
+                    foreach (var item in clips)
+                    {
+                        if (item.name == action.AnimationName)
+                            return item.length;
+                    }
+                }
+            }
+            else
+                Log($"No action was registered with the tag \'{Intent ?? "null"}\'");
         }
-        else
-            Log($"No action was registered with the tag \'{Intent ?? "null"}\'");
-    }
-
-    // TODO: Depending on the animation, return a different number
-    internal float ExecuteAction()
-    {
-        ExecuteIntent();
-
-        return 0.5333333f; // 32 frames
+        return 0;
     }
     #endregion
 
@@ -267,7 +272,7 @@ public class EnemyEntity : Entity
         EffectHolder = root.transform.Find("Status")?.gameObject;
     }
 
-    protected override void OnEffectAdded(Type type)
+    protected override void OnEffectAdded<T>()
     {
         UpdateIntent();
     }

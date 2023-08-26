@@ -18,8 +18,13 @@
     <ItemGroup>
       <None Remove="btdadventure.bundle" />
       <None Remove="enemy_groups.xml" />
+      <None Remove="Images\Effects\icon_burn.png" />
       <None Remove="Images\Effects\icon_enemy_weak.png" />
+      <None Remove="Images\Effects\icon_frail.png" />
       <None Remove="Images\Effects\icon_permashield.png" />
+      <None Remove="Images\Effects\icon_poison.png" />
+      <None Remove="Images\Effects\icon_wound.png" />
+      <None Remove="Images\Effects\innate_wounded_hit.png" />
       <None Remove="Images\Icons\btdadventure.bundle" />
       <None Remove="Images\Icons\intent_damage.png" />
       <None Remove="Images\Icons\intent_damage_double.png" />
@@ -29,12 +34,6 @@
     </ItemGroup>
 
     <Import Project="..\btd6.targets" />
-
-    <ItemGroup>
-		<EmbeddedResource Include="Resources\enemy_groups.xml">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</EmbeddedResource>
-    </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Update="Images\Icons\intent_damage.png">
@@ -57,5 +56,6 @@
     <ItemGroup>
       <Folder Include="Bundles\" />
       <Folder Include="Cards\Heroes\" />
+      <Folder Include="Resources\" />
     </ItemGroup>
 </Project>

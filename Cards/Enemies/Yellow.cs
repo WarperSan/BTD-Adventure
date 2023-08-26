@@ -7,6 +7,8 @@ abstract class Yellow : RegularBloon
     public override int MaxHP => 44;
     public override int Damage => 5;
     public override string? Portrait => VanillaSprites.Yellow;
+    public override string? World => "forest";
+    public override uint RiskValue => 10;
 }
 
 internal class Yellow1 : Yellow

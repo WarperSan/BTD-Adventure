@@ -3,23 +3,32 @@ List of things to do
 Very important:
 - Choose card
 - Choose enemy target
-- Generate rewards
 - Level generator
+- Replace end turn btn display
+- Disable end turn btn when enemy turn
+- Fix shied ui on death
 
 Fairly important:
+- Rogue Class effects
+- Skills
+- Fix effect level text
 - Immune effect
 - Overcharge effect
 - Resistance effect
-- Thorns effect
-- Burn effect
-- Poison effect
-- Block effect
 - Curse effect
-- Frail effect
-- Silence effect
-- Wound effect
+
+- No Primary Effect
+- No Military Effect
+- No Magic Effect
+- No Support Effect
+- No Items Effect
+- No Hero Effect
+- No Paragon Effect
+
 - Disable all keybinds (or redirect some)
 - Merchant screen (copy the btd6 shop)
+- Change the enemy group api
+- Add particle for effects
 
 Slightly important:
 - Fix enemy HP bar on death
@@ -56,3 +65,16 @@ Complete:
 - x2 Damage effect
 - Strength effect
 - Armored effect
+- Generate rewards
+- Port HeroCard to ModContent
+- Port EnemyAction to ModContent
+- Port RogueClass to ModContent
+- Port EnemyCard to ModContent
+- Fix swing animation
+- Wound effect
+- Burn effect
+- Poison effect
+- Frail effect
+- Thorns effect
+
+Canceled (Reason):

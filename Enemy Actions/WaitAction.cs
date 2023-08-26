@@ -1,11 +1,11 @@
-﻿using BTDAdventure.Abstract_Classes;
+﻿using BTDAdventure.Abstract;
 using BTDAdventure.Entities;
 
 namespace BTDAdventure.Enemy_Actions;
 
 internal class WaitAction : EnemyAction
 {
-    public WaitAction() : base(Wait, 0, "IntentWait", WaitIcon) { }
+    public WaitAction() : base(Wait, "IntentWait", WaitIcon) { }
 
     public override string? GetText(EnemyEntity source) => null;
 

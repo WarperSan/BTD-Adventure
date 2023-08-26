@@ -21,6 +21,13 @@ internal class UIManager
     public const string WaitIcon = "Ui[BTDAdventure-intent_pause]";
     public const string ShieldIcon = "Ui[BTDAdventure-intent_shield-1]";
 
+    public const string WoundIcon = "Ui[BTDAdventure-icon_wound]";
+    public const string WoundExtremeIcon = "Ui[BTDAdventure-innate_wounded_hit]";
+    public const string PoisonIcon = "Ui[BTDAdventure-icon_poison]";
+    public const string BurnIcon = "Ui[BTDAdventure-icon_burn]";
+    public const string FrailIcon = "Ui[BTDAdventure-icon_frail]";
+    public const string ThornsIcon = "Ui[BTDAdventure-icon_thorns]";
+
     public const float TopValueFontSize = 125;
     #endregion
 
@@ -80,8 +87,8 @@ internal class UIManager
         VictoryBtn = VictoryUI?.GetComponent<Button>();
         VictoryBtn?.onClick.SetListener(new Function(GameManager.Instance.VictoryUIClose));
 
-        if (VictoryUI != null) InitializeText(VictoryUI.transform.Find("Banner/Text"), 225, 
-            font: Fonts.Btd6FontTitle, 
+        if (VictoryUI != null) InitializeText(VictoryUI.transform.Find("Banner/Text"), 225,
+            font: Fonts.Btd6FontTitle,
             initialText: "VICTORY");
     }
     #endregion
@@ -138,14 +145,15 @@ internal class UIManager
         float fontSize,
         TextAlignmentOptions? textAlignment = null,
         TMP_FontAsset? font = null,
-        string? initialText = null)
+        string? initialText = null,
+        [System.Runtime.CompilerServices.CallerMemberName] string source = "")
     {
         NK_TextMeshProUGUI text = @object.gameObject.AddComponent<NK_TextMeshProUGUI>();
 
         // Often because a Text component already exists
         if (text == null)
         {
-            Log($"Could not add the component NK_TextMeshProUGUI to the gameobject \'{@object.name}\'");
+            Log($"Could not add the component NK_TextMeshProUGUI to the gameobject \'{@object.name}\'", source);
             return null;
         }
 
@@ -206,11 +214,15 @@ internal class UIManager
 
         selectedCard.name = heroCard.DisplayName;
 
-        selectedCard.transform.Find("Portrait").GetComponent<Image>().SetSprite(heroCard.Portrait);
-        selectedCard.transform.Find("Background").GetComponent<Image>().SetSprite(heroCard.GetBackgroundGUID());
-
         if (swingAnimation)
-            MelonLoader.MelonCoroutines.Start(SwingCard(selectedCard));
+        {
+            MelonLoader.MelonCoroutines.Start(SwingCard(selectedCard, new Action(() =>
+            {
+                SetUpCard(selectedCard, heroCard);
+            })));
+        }
+        else
+            SetUpCard(selectedCard, heroCard);
     }
 
     internal void SetLockState(bool state)
@@ -222,6 +234,12 @@ internal class UIManager
 
             SetLockState(state, item);
         }
+    }
+
+    private static void SetUpCard(GameObject root, HeroCard template)
+    {
+        root.transform.Find("Portrait").GetComponent<Image>().SetSprite(template.Portrait);
+        root.transform.Find("Background").GetComponent<Image>().SetSprite(template.GetBackgroundGUID());
     }
     #endregion
 
@@ -333,18 +351,22 @@ internal class UIManager
         LoadingScreen?.SetActive(false);
     }
 
-    static IEnumerator SwingCard(GameObject card)
+    static IEnumerator SwingCard(GameObject card, Action? afterLeftSwing)
     {
         Animator animator = card.GetComponent<Animator>();
 
         animator.Play("PlayerCardLeftSwig");
 
         yield return new WaitForEndOfFrame(); // Wait for load
-        yield return new WaitForSeconds(0.1f); // Wait for animation
+        yield return new WaitForSeconds(0.1667f); // Wait for animation
 
         SetLockState(false, card);
+        afterLeftSwing?.Invoke();
+        yield return new WaitForEndOfFrame(); // Wait for load
 
         animator.Play("PlayerCardRightSwig");
+        yield return new WaitForEndOfFrame(); // Wait for load
+        yield return new WaitForSeconds(0.1667f); // Wait for animation
     }
 
     IEnumerator EnemyDies(int position)

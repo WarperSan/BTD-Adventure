@@ -1,10 +1,11 @@
-﻿using BTDAdventure.Entities;
+﻿using BTDAdventure.Abstract;
+using BTDAdventure.Entities;
 
 namespace BTDAdventure.Enemy_Actions;
 
 internal class ShieldAction : EnemyAction
 {
-    public ShieldAction() : base(Shield, 0, "IntentWait", ShieldIcon) { }
+    public ShieldAction() : base(Shield, "IntentWait", ShieldIcon) { }
 
     public override string? GetText(EnemyEntity source) => source.GetShield().ToString();
 

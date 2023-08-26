@@ -1,11 +1,10 @@
-﻿using BTDAdventure.Entities;
-using BTDAdventure.Managers;
+﻿using BTDAdventure.Managers;
 using Il2Cpp;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BTDAdventure.Abstract_Classes;
+namespace BTDAdventure.Abstract;
 
 public abstract class Entity
 {
@@ -34,6 +33,8 @@ public abstract class Entity
     protected NK_TextMeshProUGUI? HealthText;
     protected GameObject? HealthImg;
 
+    protected bool IsAlive => Health > 0;
+
     /// <summary>
     /// Called whenever the health UI needs an update
     /// </summary>
@@ -44,7 +45,7 @@ public abstract class Entity
         UpdateExtraHealthUI();
     }
 
-    protected void ReceiveDamage(Damage damage)
+    public void ReceiveDamage(Entity? source, Damage damage)
     {
         // Check for own skills to modify damage
         // Check for own ability to modify damage
@@ -57,8 +58,17 @@ public abstract class Entity
         {
             ShieldDamage(damage);
         }
+
+        if (source != null)
+        {
+            // IAttackedEffect
+            ExecuteOnEffect(this, new Action<IAttackedEffect>(effect =>
+            {
+                effect.OnEffect(this, source);
+            }));
+        }
     }
-    public void ReceiveDamage(int amount) => ReceiveDamage(new Damage(amount));
+    public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
 
     protected void RemoveHealth(int amount) => ModifyHealth(amount, true);
     protected void AddHealth(int amount) => ModifyHealth(amount, false);
@@ -105,7 +115,6 @@ public abstract class Entity
                 AddHealth(Mathf.CeilToInt(MaxHealth * Health / (float)oldMH));
         }
     }
-
 
     /// <summary>
     /// Called whenever the entity dies.
@@ -190,11 +199,7 @@ public abstract class Entity
         int amount = BaseShield;
 
         // Apply skills
-        foreach (var item in _effects)
-        {
-            if (item is IShieldEffect shieldEffect)
-                amount = shieldEffect.ModifyAmount(amount);
-        }
+        ExecuteOnEffect(this, new Action<IShieldEffect>(shieldEffect => { amount = shieldEffect.ModifyAmount(amount); }));
 
         return amount;
     }
@@ -203,16 +208,14 @@ public abstract class Entity
     {
         bool result = false;
 
-        foreach (var item in _effects)
+        ExecuteOnEffect(this, new Action<IShieldEffect>(shieldEffect =>
         {
-            if (item is IShieldEffect shieldEffect)
-            {
-                result = shieldEffect.ShouldKeepShield();
+            result |= shieldEffect.ShouldKeepShield();
 
-                if (result)
-                    break;
-            }
-        }
+            // Optimisation possible
+            //if (result)
+            //    break;
+        }));
         return result;
     }
     #endregion
@@ -230,12 +233,10 @@ public abstract class Entity
         damage.Amount += GameManager.Instance.FightDifficulty;
 
         // Apply skills
-        foreach (var item in _effects)
+        ExecuteOnEffect(this, new Action<IAttackEffect>(target =>
         {
-            if (item is IAttackEffect attackEffect)
-                damage = attackEffect.ModifyDamage(this, damage);
-        }
-
+            damage = target.ModifyDamage(this, damage);
+        }));
         return damage.Amount;
     }
 
@@ -256,7 +257,7 @@ public abstract class Entity
     /// <summary>
     /// Attacks <paramref name="target"/> with the attack <paramref name="damage"/>.
     /// </summary>
-    public virtual void AttackTarget(Damage damage, Entity? target) => target?.ReceiveDamage(damage);
+    public virtual void AttackTarget(Damage damage, Entity? target) => target?.ReceiveDamage(this, damage);
     #endregion
 
     #region Effects
@@ -280,12 +281,12 @@ public abstract class Entity
     /// </summary>
     public bool HasEffect<T>() where T : Effect => GetEffect<T>() != null;
 
-    /// <returns><see cref="Effect.Level"/> of the effect or -1 if not found</returns>
-    public int GetEffectLevel<T>() where T : Effect => GetEffect<T>()?.Level ?? -1;
+    /// <returns><see cref="Effect.Level"/> of the effect</returns>
+    public int GetEffectLevel<T>() where T : Effect => GetEffect<T>()?.Level ?? 0;
 
-    private Effect? GetEffect<T>() where T : Effect => GetEffect(typeof(T));
-    private Effect? GetEffect(Type effectType)
+    private Effect? GetEffect<T>() where T : Effect
     {
+        Type effectType = typeof(T);
         foreach (var item in _effects)
         {
             if (effectType.IsAssignableFrom(item.GetType()))
@@ -294,13 +295,14 @@ public abstract class Entity
         return null;
     }
 
-    private Effect GetOrCreateEffect(Type type)
+    #region Add
+    private Effect GetOrCreateEffect<T>() where T : Effect
     {
-        Effect? effect = GetEffect(type);
+        Effect? effect = GetEffect<T>();
 
         if (effect == null)
         {
-            effect = (Effect?)Activator.CreateInstance(type);
+            effect = Activator.CreateInstance<T>();
 
             if (effect == null)
                 throw new NullReferenceException();
@@ -312,12 +314,10 @@ public abstract class Entity
             effect.SetUpUI(this, effectObject);
 
             _effects.Add(effect);
-            OnEffectAdded(type);
+            OnEffectAdded<T>();
         }
         return effect;
     }
-
-    public int AddLevel(Type effectType, int amount) => AddLevel(GetOrCreateEffect(effectType), amount);
 
     /// <summary>
     /// Adds the <paramref name="amount"/> to <see cref="Effect.Level"/> of <paramref name="effect"/>.
@@ -337,7 +337,7 @@ public abstract class Entity
     /// Adds the <paramref name="amount"/> to the <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.
     /// </summary>
     /// <returns>New <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.</returns>
-    public static int AddPermanentLevel(Effect effect, int amount)
+    private static int AddPermanentLevel(Effect effect, int amount)
     {
         effect.LowestLevel += amount;
 
@@ -346,30 +346,14 @@ public abstract class Entity
 
         return effect.LowestLevel;
     }
+    #endregion
 
-    /// <summary>
-    /// Removes the effect of the give type
-    /// </summary>
-    /// <returns></returns>
-    public Effect? RemoveEffect<T>() where T : Effect
-    {
-        Effect? effect = GetEffect<T>();
-
-        if (effect != null)
-            RemoveEffect(effect);
-        return effect;
-    }
-
+    #region Remove
     /// <summary>
     /// Removes the given effect
     /// </summary>
     /// <returns><inheritdoc cref="List{T}.Remove(T)"/></returns>
     public bool RemoveEffect(Effect effect) => _effects.Remove(effect);
-
-    /// <summary>
-    /// Removes all effects
-    /// </summary>
-    public Effect[] RemoveAllEffects() => RemoveAllMatching(new Predicate<Effect>(_ => true));
 
     /// <summary>
     /// Removes all effects matching the given condition
@@ -389,8 +373,46 @@ public abstract class Entity
         }
         return effectsRemoved.ToArray();
     }
+    #endregion
+
+    #region Variants
+    /// <summary>
+    /// Removes the effect of the give type
+    /// </summary>
+    /// <returns></returns>
+    public Effect? RemoveEffect<T>() where T : Effect
+    {
+        Effect? effect = GetEffect<T>();
+
+        if (effect != null)
+            RemoveEffect(effect);
+        return effect;
+    }
+
+    /// <summary>
+    /// Removes all effects
+    /// </summary>
+    public Effect[] RemoveAllEffects() => RemoveAllMatching(new Predicate<Effect>(_ => true));
+
+    public int AddLevel<T>(int amount) where T : Effect => AddLevel(GetOrCreateEffect<T>(), amount);
+    public int AddPermanentLevel<T>(int amount) where T : Effect => AddPermanentLevel(GetOrCreateEffect<T>(), amount);
+    #endregion
+
+    internal static void ExecuteOnEffect<T>(Entity target, Action<T>? onTrue = null, Action<Effect>? onFalse = null) where T : IEffect
+    {
+        foreach (var item in target._effects)
+        {
+            if (item is T iEffect)
+                onTrue?.Invoke(iEffect);
+            else
+                onFalse?.Invoke(item);
+
+            if (!target.IsAlive)
+                break;
+        }
+    }
 
     protected virtual void SetUpEffectUI(GameObject root) { }
-    protected virtual void OnEffectAdded(Type type) { }
+    protected virtual void OnEffectAdded<T>() where T : Effect { }
     #endregion
 }

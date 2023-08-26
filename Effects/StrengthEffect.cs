@@ -1,4 +1,4 @@
-﻿using BTDAdventure.Abstract_Classes;
+﻿using BTDAdventure.Abstract;
 using System;
 
 namespace BTDAdventure.Effects;
@@ -8,8 +8,8 @@ namespace BTDAdventure.Effects;
 /// </summary>
 public class StrengthEffect : Effect, IAttackEffect
 {
+    protected override string Name => "Strength";
     protected override string? Image => throw new NotImplementedException();
-    public override string DisplayName => throw new NotImplementedException();
 
     public Damage ModifyDamage(Entity entity, Damage damage)
     {

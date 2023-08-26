@@ -1,22 +1,18 @@
-﻿using BTD_Mod_Helper.Api.Enums;
+﻿using BTD_Mod_Helper.Api;
+using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using Il2Cpp;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BTDAdventure.Managers;
 
-internal class RewardManager
+internal class RewardManager(UIManager? uIManager)
 {
-    private readonly UIManager? UiManager;
-
-    public RewardManager(UIManager? uIManager)
-    {
-        this.UiManager = uIManager;
-    }
-
-    internal System.Collections.Generic.List<GameObject?> _rewardsObj = new();
+    private readonly UIManager? UiManager = uIManager;
+    internal List<GameObject?> _rewardsObj = new();
 
     int rewardIndex = -1;
 
@@ -48,38 +44,37 @@ internal class RewardManager
 
     // 3 cards + 1 bjms reward
     private Reward?[]? _rewards;
-    private Reward?[] GenerateRewards()
+    private static Reward?[] GenerateRewards()
     {
         int amountOfRewards = 4;
 
         Reward?[] rewards = new Reward?[amountOfRewards];
 
         // Randomize the rewards
+        var allCards = ModContent.GetContent<HeroCard>();
 
-        rewards[0] = new Reward()
+        List<int> positions = new();
+
+        for (int i = 0; i < allCards.Count; i++) positions.Add(i);
+
+        for (int i = 0; i < 3; i++)
         {
-            HeroCard = typeof(DartMonkey000)
-        };
-        rewards[1] = new Reward()
-        {
-            HeroCard = typeof(MonkeyVillage000)
-        };
-        rewards[2] = new Reward()
-        {
-            HeroCard = typeof(WizardMonkey000)
-        };
-        rewards[3] = new Reward()
+            int rdmIndex = UnityEngine.Random.Range(0, positions.Count);
+            rewards[i] = new Reward()
+            {
+                HeroCard = allCards[positions[rdmIndex]]
+            };
+
+            positions.RemoveAt(rdmIndex);
+        }
+
+        rewards[^1] = new Reward()
         {
             Bloonjamins = 3
         };
 
         return rewards;
     }
-
-    /*
-     * 
-
-    */
 
     private void SetUpReward(int index, Reward? reward)
     {
@@ -137,23 +132,25 @@ internal class RewardManager
     struct Reward
     {
         // Rewards can be a card, bloonjamins, nothing (or cash)
-        public Type? HeroCard;
+        public HeroCard? HeroCard;
         public uint? Bloonjamins;
         public uint? Cash;
 
-        internal void CollectReward()
+        internal readonly void CollectReward()
         {
             if (Bloonjamins != null)
                 GameManager.Instance.Player?.AddBloonjamins(Bloonjamins.Value);
             else if (Cash != null)
                 GameManager.Instance.Player?.AddCoins(Cash.Value);
             else if (HeroCard != null)
-            {
-                // Add card
-            }
+                GameManager.Instance.AddCard(HeroCard);
+#if DEBUG
+            else
+                Log("A reward with no valid content was claimed.");
+#endif
         }
 
-        internal void SetUpReward(out string? portrait, out string? title)
+        internal readonly void SetUpReward(out string? portrait, out string? title)
         {
             portrait = null;
             title = null;
@@ -170,10 +167,8 @@ internal class RewardManager
             }
             else if (HeroCard != null)
             {
-                HeroCard? card = Activator.CreateInstance(HeroCard) as HeroCard;
-
-                portrait = card?.Portrait;
-                title = card?.DisplayName;
+                portrait = HeroCard.Portrait;
+                title = HeroCard.DisplayName;
             }
         }
     }

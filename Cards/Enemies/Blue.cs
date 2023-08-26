@@ -16,4 +16,8 @@ internal class Blue : RegularBloon
     public override int MaxHP => 24;
     public override int Damage => 4;
     public override int Armor => 4;
+
+    public override string? World => "forest";
+
+    public override uint RiskValue => 2;
 }

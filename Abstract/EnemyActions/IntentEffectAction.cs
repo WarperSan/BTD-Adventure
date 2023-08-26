@@ -2,19 +2,27 @@
 using BTDAdventure.Managers;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
-namespace BTDAdventure.Abstract_Classes.EnemyActions;
+namespace BTDAdventure.Abstract.EnemyActions;
 
 public abstract class IntentEffectAction : IntentAttackAction
 {
-    protected IntentEffectAction(uint order) : base(Weakness, order, UIManager.CurseIcon) { }
+    protected IntentEffectAction() : base(Weakness, UIManager.CurseIcon) { }
 
     public override void OnAction(EnemyEntity source, PlayerEntity player)
     {
+        var method = typeof(PlayerEntity).GetMethod(nameof(PlayerEntity.AddLevel));
+
+        if (method == null)
+            return;
+
         foreach (var item in Effects)
         {
             if (GameManager.Instance.IsTypeAnEffect(item.Key))
-                player.AddLevel(item.Key, item.Value);
+            {
+                method.MakeGenericMethod(item.Key).Invoke(player, new object[] { item.Value });
+            }
         }
     }
 

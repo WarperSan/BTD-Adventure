@@ -1,11 +1,10 @@
-﻿global using static BTDAdventure.EnemyAction;
-global using static BTDAdventure.Managers.GameManager;
-global using static BTDAdventure.Managers.UIManager;
-global using BTDAdventure.Cards.Enemies;
-global using IEnumerator = System.Collections.IEnumerator;
+﻿global using BTDAdventure.Abstract;
 global using BTDAdventure.Cards.EnemyCards;
 global using BTDAdventure.Cards.HeroCard;
-
+global using static BTDAdventure.Abstract.EnemyAction;
+global using static BTDAdventure.Managers.GameManager;
+global using static BTDAdventure.Managers.UIManager;
+global using IEnumerator = System.Collections.IEnumerator;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
@@ -14,6 +13,7 @@ using BTDAdventure.Managers;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -22,21 +22,6 @@ using UnityEngine.UI;
 [assembly: MelonLoader.MelonGame("Ninja Kiwi", "BloonsTD6")]
 
 namespace BTDAdventure;
-
-// Order of actions:
-// Fill hand
-// Select card
-// Select enemy
-// Play card
-// Place card in discard or exile
-// Refill if needed
-// Remove mana
-// Repeat until end or no more mana
-// Lock all cards
-// Enemies play
-// Remove hand
-// Update enemies intent
-// Repeat until end of fight or death
 
 public class BTDAdventure : BloonsTD6Mod
 {
@@ -47,9 +32,30 @@ public class BTDAdventure : BloonsTD6Mod
         slider = true,
     };
 
+    public static ModSettingHotkey ShowDescription = new(KeyCode.R);
+
     public override void OnApplicationStart()
     {
         GameManager.Instance.Initialize();
+    }
+
+    public override void OnUpdate()
+    {
+        if (ShowDescription.JustPressed())
+        {
+            var c = GameManager.Instance.GetCard();
+
+            if (c == null)
+            {
+                Log("No card is selected");
+            }
+            else
+            {
+                Console.WriteLine();
+                Log($"Here is the description of the card \'{c.DisplayName}\'", null);
+                Log(c.Description, null);
+            }
+        }
     }
 
     private bool _wasFromMe = false;

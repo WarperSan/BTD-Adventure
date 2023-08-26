@@ -1,13 +1,12 @@
-﻿using BTDAdventure.Abstract_Classes;
-using System;
+﻿using BTDAdventure.Abstract;
 
 namespace BTDAdventure.Effects;
 
 
-public class ArmoredEffect : Effect, IShieldEffect
+internal class ArmoredEffect : Effect, IShieldEffect
 {
+    protected override string Name => "Armored";
     protected override string? Image => "Ui[BTDAdventure-icon_permashield]";
-    public override string DisplayName => "Armored";
 
     public int ModifyAmount(int amount) => amount;
 

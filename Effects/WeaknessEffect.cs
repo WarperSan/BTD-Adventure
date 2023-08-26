@@ -1,6 +1,5 @@
-﻿using BTDAdventure.Abstract_Classes;
+﻿using BTDAdventure.Abstract;
 using BTDAdventure.Entities;
-using System;
 using UnityEngine;
 
 namespace BTDAdventure.Effects;
@@ -10,8 +9,8 @@ namespace BTDAdventure.Effects;
 /// </summary>
 public class WeaknessEffect : Effect, IAttackEffect
 {
+    protected override string Name => "Weakness";
     protected override string? Image => "Ui[BTDAdventure-icon_enemy_weak]";
-    public override string DisplayName => "Weakness";
 
     public Damage ModifyDamage(Entity entity, Damage damage)
     {

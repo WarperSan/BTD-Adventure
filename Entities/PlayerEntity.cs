@@ -1,7 +1,7 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Abstract_Classes;
+using BTDAdventure.Abstract;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using Il2CppTMPro;
@@ -14,10 +14,11 @@ public class PlayerEntity : Entity
 {
     internal bool AreCardsLocked = false;
 
-    public PlayerEntity(GameObject? root, int maxHealth) : base(root)
+    public PlayerEntity(GameObject? root, int maxHealth, RogueClass rogueClass) : base(root)
     {
         MaxHealth = maxHealth;
         Health = maxHealth;
+        RogueClass = rogueClass;
     }
 
     #region Health
@@ -164,5 +165,9 @@ public class PlayerEntity : Entity
         UpdateBloonjaminsUI();
         UpdateShieldText();
     }
+    #endregion
+
+    #region Rogue Class
+    internal RogueClass RogueClass;
     #endregion
 }

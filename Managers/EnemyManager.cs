@@ -1,196 +1,196 @@
-﻿using BTD_Mod_Helper;
-using BTD_Mod_Helper.Extensions;
+﻿using BTD_Mod_Helper.Api;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using System.Xml;
+using Random = UnityEngine.Random;
 
 namespace BTDAdventure.Managers;
 
+///
+/// TODO: Change the enemy group api
+/// Attribute a risk value to each enemy
+/// Each fight has its risk value
+/// Try to separate the risk value between the enemies of the world
+/// If risk value is remaining, spawn a world portal tha spawns a previous world enemy
+/// with higher stats (lowest enemy of world / enemy %)
+/// 
+///
+
 internal class EnemyManager
 {
-    const string EnemyGroupsFileName = "enemy_groups.xml";
-
-    private Type[]? EnemiesTypes;
-    public bool IsEnemyTypeValid(Type t, bool sendErrorMessage = true) => IsGivenTypeInArray<EnemyCard>(EnemiesTypes, t, sendErrorMessage);
-
-    internal Type? GetType(string? name)
-    {
-        if (name != null && EnemiesTypes != null)
-        {
-            foreach (var item in EnemiesTypes)
-            {
-                if (item.Name == name)
-                    return item;
-            }
-        }
-        return null;
-    }
+    Dictionary<string, List<(uint, Type)>> EnemiesTypes;
 
     public EnemyManager()
     {
-        EnemiesTypes = InitializeAirport<EnemyCard>();
-        GetEnemyGroups();
+        var enemies = ModContent.GetContent<EnemyCard>();
+
+        EnemiesTypes = new();
+
+
+        foreach (var enemy in enemies)
+        {
+            if (enemy == null || string.IsNullOrEmpty(enemy.World))
+                continue;
+
+            if (!EnemiesTypes.ContainsKey(enemy.World))
+            {
+                EnemiesTypes.Add(enemy.World,
+                new()
+                    {
+                        (enemy.RiskValue, enemy.GetType())
+                });
+            }
+            else
+                EnemiesTypes[enemy.World].Add((enemy.RiskValue, enemy.GetType()));
+        }
+
+        foreach (var (_,value) in EnemiesTypes)
+        {
+            value.Sort((x, y) =>
+            {
+                return x.Item1.CompareTo(y.Item1);
+            });
+        }
     }
 
     internal Type?[] GenerateEnemies(string type, string world)
     {
-        Type?[] enemies = new Type?[MaxEnemiesCount];
-        EnemyGroup[] validGroups = EnemyGroups.FindAll(x => x.Type == type && x.World == world);
+        var enemies = new Type?[MaxEnemiesCount];
 
-        if (validGroups.Length > 0)
+        uint risk = (uint)Random.Range(3, 29);
+        uint min = 0;
+
+        // R5
+        // 1 Green
+        // 1 Red
+
+        // R6
+        // 1 Green
+        // 1 Blue
+        
+        // R7
+        // 1 Green
+        // 1 Blue
+        // 1 Red
+
+        // R8
+        // 2 Green
+        
+        // R9
+        // 2 Green
+        // 1 Red
+
+        // R10
+        // 1 Yellow
+
+        // R11
+        // 1 Yellow
+        // 1 Red
+
+        // R12
+        // 1 Yellow
+        // 1 Blue
+
+        // R13
+        // 1 Yellow
+        // 1 Blue
+        // 1 Red
+
+        // R14
+        // 1 Yellow
+        // 1 Green
+        
+        // R15
+        // 1 Yellow
+        // 1 Green
+        // 1 Red
+
+        // R16
+        // 1 Yellow
+        // 1 Green
+        // 1 Blue
+
+        // R24-29
+        // 2 Yellow
+        // 1 Green
+
+
+        // Randomizing the enemy groups removes possible synergies
+        // Randomizing the enemy groups allows more replayability
+
+        // Normal < Elite < Boss
+        // Normal battles must be easier than Elite battles
+        // The risk of normal battles are lower than Elite battles
+        // Randomize the risk boundaries of each tier
+        // Normal should be [2 * lowest; lowest elite - 1]
+        // Elite should be [2 * lowest; lowest boss - 1]
+
+        // Increase the general difficulty after each fight ?
+
+        var e = EnemiesTypes[world];
+
+        // If risk is <= min
+        // Search glitches foes
+
+        // If risk is <= 
+        // Find all enemies of risk X
+        // Take a random one
+
+        for (int i = 0; i < enemies.Length; i++)
         {
-            int index = UnityEngine.Random.Range(0, validGroups.Length);
+            uint enemyRisk;
+            Type? enemyType;
 
-#if DEBUG
-            Log($"Groups #{index} chosen.");
-#endif
+            (enemyRisk, enemyType) = FindEnemyWithRisk(e, risk);
 
-            Type[] groupEnemies = validGroups[index].Enemies;
+            if (enemyType == null)
+                break;
 
-            int min = Math.Min(enemies.Length, groupEnemies.Length);
+            risk -= enemyRisk;
 
-            for (int i = 0; i < enemies.Length; i++)
-            {
-                enemies[i] = groupEnemies.Length > i ? groupEnemies[i] : null;
-            }
-        }
-        else
-        {
-            Log($"No group found of type \'{type}\' in the world \'{world}\'.");
+            enemies[i] = enemyType;
 
-            // Set bugged group
+            if (risk <= 0)
+                break;
         }
 
         return enemies;
     }
 
-    #region Enemy Group
-    private EnemyGroup[]? EnemyGroups;
-
-    internal void GetEnemyGroups()
+    private static (uint, Type?) FindEnemyWithRisk(List<(uint, Type)> enemiesAvailable, uint risk)
     {
-        List<EnemyGroup> groups = new();
+        List<(uint, Type)> enemies = new();
+        uint? target = null;
 
-        string path = Path.Combine(ModHelper.ModHelperDirectory, EnemyGroupsFileName);
-
-        // If the file does not exist
-        if (!File.Exists(path))
-            CopyEnemyGroupXML(path);
-
-        try
+        for (int i = enemiesAvailable.Count - 1; i >= 0; i--)
         {
-            // Get file content
-            XmlDocument doc = new();
-
-            try { doc.Load(path); }
-            catch (Exception e)
+            if (target.HasValue)
             {
-                Log(e.Message);
-
-                // If error, try to copy the internal
-                CopyEnemyGroupXML(path);
-
-                doc.Load(path); // If crash again, total error
-            }
-
-            XmlNodeList? nodes = doc.DocumentElement?.SelectNodes("/groups/group");
-
-            // Read each group
-            if (nodes != null)
-            {
-                foreach (XmlNode node in nodes)
+                // If enemy has a risk == target
+                if (enemiesAvailable[i].Item1 == target.Value)
                 {
-                    string? type = node.Attributes?["type"]?.InnerText;
-                    // Check if type is valid
-                    if (!IsGroupTypeValid(type))
-                        continue;
+                    // Add the enemy to the list
+                    enemies.Add(enemiesAvailable[i]);
+                }
+                // If the enemy has a lower risk than the target, all enemies with risk == target were found
+                else if (enemiesAvailable[i].Item1 < target.Value)
+                    break;
+            }
+            else
+            {
+                // If risk is <= min
+                // Search glitches foes
 
-                    string? world = node.Attributes?["world"]?.InnerText;
-                    // Check if world is valid
-                    if (!IsWorldValid(world))
-                        continue;
+                // If the enemy has a risk <= than the remaining risk
+                if (enemiesAvailable[i].Item1 <= risk)
+                {
+                    // Set the risk target
+                    target = enemiesAvailable[i].Item1;
 
-                    List<Type> enemies = new();
-                    string[] enemiesTXT = node.InnerText.Split("|");
-
-                    foreach (string item in enemiesTXT)
-                    {
-                        if (!IsEnemyTypeValid(item))
-                            continue;
-
-                        Type? t = GetType(item);
-                        if (t != null)
-                            enemies.Add(t);
-                    }
-#if DEBUG
-                    Log($"Type: {type}, World: {world}");
-#endif
-                    groups.Add(new(type ?? "", enemies.ToArray(), world ?? ""));
+                    // Add the enemy to the list
+                    enemies.Add(enemiesAvailable[i]);
                 }
             }
-
-            EnemyGroups = groups.ToArray();
         }
-        catch (Exception e)
-        {
-            Log(e.Message);
-            throw;
-        }
+        return enemies.Count == 0 ? (default, null) : enemies[Random.Range(0, enemies.Count)];
     }
-    private void CopyEnemyGroupXML(string path)
-    {
-        Log($"\'{EnemyGroupsFileName}\' not found at \'{path}\'. Resetting the file ...");
-
-        Assembly assembly = Assembly.GetExecutingAssembly();
-
-        // If not, copy intern file
-        using var resource = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.Resources.{EnemyGroupsFileName}");
-        using var file = new FileStream(path, FileMode.Create, FileAccess.Write);
-        resource?.CopyTo(file);
-    }
-
-    private bool IsGroupTypeValid(string? value, bool showMessage = true)
-    {
-        bool result = value != null;
-
-        if (!result && showMessage)
-            Log($"\'{value ?? "null"}\' is an invalid group type.");
-        return result;
-    }
-    private bool IsWorldValid(string? value, bool showMessage = true)
-    {
-        bool result = value != null;
-
-        if (!result && showMessage)
-            Log($"\'{value ?? "null"}\' is an invalid world.");
-        return result;
-    }
-    private bool IsEnemyTypeValid(string? value, bool showMessage = true)
-    {
-        bool result = value != null;
-
-        if (result)
-            result = EnemiesTypes.Any(x => x.Name == value);
-
-        if (!result && showMessage)
-            Log($"\'{value ?? "null"}\' is an invalid enemy.");
-        return result;
-    }
-
-    struct EnemyGroup
-    {
-        public string Type;
-        public Type[] Enemies;
-        public string World;
-
-        public EnemyGroup(string Type, Type[] Enemies, string World)
-        {
-            this.Type = Type;
-            this.Enemies = Enemies;
-            this.World = World;
-        }
-    }
-    #endregion
 }

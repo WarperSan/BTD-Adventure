@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+﻿using BTD_Mod_Helper.Api;
+using UnityEngine;
 
 namespace BTDAdventure.Cards.EnemyCards;
 
-public abstract class EnemyCard
+public abstract class EnemyCard : ModContent
 {
     /// <summary>
     /// Defines the GUID of the image used for the portrait.
@@ -40,7 +41,15 @@ public abstract class EnemyCard
 
     public virtual string? GetBackgroundGUID() => null;
 
-    //public virtual string? World { get; }
+    public abstract string? World { get; }
+    public abstract uint RiskValue { get; }
+
+    public override void Register()
+    {
+#if DEBUG
+        Log(Name + " registered");
+#endif
+    }
 }
 
 public abstract class RegularBloon : EnemyCard
