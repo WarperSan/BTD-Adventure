@@ -1,4 +1,5 @@
-﻿using BTDAdventure.Managers;
+﻿using BTDAdventure.Entities;
+using BTDAdventure.Managers;
 using Il2Cpp;
 using System;
 using System.Collections.Generic;
@@ -226,11 +227,12 @@ public abstract class Entity
     protected int? Damage;
 
     /// <returns>Amount of damage that an attack would deal</returns>
-    internal int GetAttack()
+    internal int GetAttack(int? amount = null)
     {
-        Damage damage = new(Damage ?? 0);
+        Damage damage = new(amount ?? Damage ?? 0);
 
-        damage.Amount += GameManager.Instance.FightDifficulty;
+        if (this is not PlayerEntity)
+            damage.Amount += GameManager.Instance.FightDifficulty;
 
         // Apply skills
         ExecuteOnEffect(this, new Action<IAttackEffect>(target =>

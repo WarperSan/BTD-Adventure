@@ -13,7 +13,7 @@ internal class GameManager
     public const int MaxPlayerCardCount = 4;
     #endregion
 
-    public static GameManager Instance { get; set; } = new();
+    internal static GameManager Instance { get; set; } = new();
 
 
     internal void Initialize()
@@ -421,6 +421,8 @@ internal class GameManager
     }
 
     public void AddCard(HeroCard card) => _globalCardList.Add(card);
+
+    internal int GetPlayerDamage(int damage) => Player?.GetAttack(damage) ?? 0;
 
     #region Coroutines
     IEnumerator ExecuteActionCoroutine()

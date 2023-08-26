@@ -76,5 +76,6 @@ Complete:
 - Poison effect
 - Frail effect
 - Thorns effect
+- Card descriptions
 
 Canceled (Reason):

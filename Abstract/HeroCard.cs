@@ -46,6 +46,8 @@ public abstract class HeroCard : ModContent
     }
 
     #region Attack
+    protected static int CalculateDamage(int amount) => GameManager.Instance.GetPlayerDamage(amount);
+
     protected static void AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
     protected static void AttackEnemy(Damage damage) => GameManager.Instance.AttackEnemy(damage);
     protected static void AttackAllEnemies(int amount) => AttackAllEnemies(new Damage(amount));
@@ -85,7 +87,7 @@ public class DartMonkey000 : HeroCard
 
     public override string DisplayName => "Base Dart Monkey";
 
-    public override string Description => $"Deals {6} damage to the selected enemy";
+    public override string Description => $"Deals {CalculateDamage(6)} damage to the selected enemy";
 
     internal override void PlayCard()
     {
@@ -100,7 +102,7 @@ public class WizardMonkey000 : HeroCard
 
     public override string DisplayName => "Base Wizard Monkey";
 
-    public override string Description => $"Applies {3} Weakness and deals {3} damage";
+    public override string Description => $"Applies {3} Weakness and deals {CalculateDamage(3)} damage";
 
     internal override void PlayCard()
     {
@@ -145,7 +147,7 @@ public class MonkeyAce000 : HeroCard
     public override TowerSet? Type => TowerSet.Military;
     public override string DisplayName => "Base Monkey Ace";
 
-    public override string Description => $"Deals {3} to all enemies";
+    public override string Description => $"Deals {CalculateDamage(3)} to all enemies";
 
     internal override void PlayCard()
     {
@@ -159,7 +161,7 @@ public class BoomerangMonkey000 : HeroCard
     public override TowerSet? Type => TowerSet.Primary;
     public override string DisplayName => "Base Boomerang Monkey";
 
-    public override string Description => $"Attacks 2 times, dealing {2} damage each time";
+    public override string Description => $"Attacks 2 times, dealing {CalculateDamage(2)} damage each time";
 
     internal override void PlayCard()
     {

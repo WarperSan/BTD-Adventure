@@ -9,6 +9,7 @@ using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure;
+using BTDAdventure.Components;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Unity.UI_New;
@@ -25,6 +26,8 @@ namespace BTDAdventure;
 
 public class BTDAdventure : BloonsTD6Mod
 {
+    internal static Material? blurMat;
+
     public static ModSettingDouble EnemySpeed = new(0.25)
     {
         min = 0,
@@ -37,6 +40,7 @@ public class BTDAdventure : BloonsTD6Mod
     public override void OnApplicationStart()
     {
         GameManager.Instance.Initialize();
+        Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<ShaderEngine_CameraBehavior>();
     }
 
     public override void OnUpdate()
@@ -58,6 +62,7 @@ public class BTDAdventure : BloonsTD6Mod
         }
     }
 
+
     private bool _wasFromMe = false;
 
     public override void OnMatchStart()
@@ -65,6 +70,21 @@ public class BTDAdventure : BloonsTD6Mod
         if (_wasFromMe)
         {
             GameManager.Instance.StartGame();
+
+            // Blurry BG
+            if (Camera.allCameras.Count > 0)
+            {
+                foreach (Camera cam in Camera.allCameras)
+                {
+                    if (cam.gameObject.name == "SelectedTowerOutline")
+                        continue;
+
+                    if (!cam.gameObject.HasComponent<ShaderEngine_CameraBehavior>())
+                    {
+                        cam.gameObject.AddComponent<ShaderEngine_CameraBehavior>();
+                    }
+                }
+            }
 
             _wasFromMe = false; // Reset
         }
