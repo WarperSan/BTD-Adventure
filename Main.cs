@@ -5,6 +5,7 @@ global using static BTDAdventure.Abstract.EnemyAction;
 global using static BTDAdventure.Managers.GameManager;
 global using static BTDAdventure.Managers.UIManager;
 global using IEnumerator = System.Collections.IEnumerator;
+
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
@@ -12,53 +13,54 @@ using BTDAdventure;
 using BTDAdventure.Components;
 using BTDAdventure.Managers;
 using Il2Cpp;
+using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-[assembly: MelonLoader.MelonInfo(typeof(BTDAdventure.BTDAdventure), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
+[assembly: MelonLoader.MelonInfo(typeof(BTDAdventure.Main), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonLoader.MelonGame("Ninja Kiwi", "BloonsTD6")]
 
 namespace BTDAdventure;
 
-public class BTDAdventure : BloonsTD6Mod
+public class Main : BloonsTD6Mod
 {
-    internal static Material? blurMat;
+    internal static Material? blurMat = null;
 
-    public static ModSettingDouble EnemySpeed = new(0.25)
-    {
-        min = 0,
-        max = 2,
-        slider = true,
-    };
+
 
     public static ModSettingHotkey ShowDescription = new(KeyCode.R);
 
     public override void OnApplicationStart()
     {
         GameManager.Instance.Initialize();
+        InjectTypes();
+    }
+
+    private void InjectTypes()
+    {
         Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<ShaderEngine_CameraBehavior>();
+        Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapNode>();
+        //Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapGenerator.Path>();
+        Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapGenerator>();
+        Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<DeleteObject>();
     }
 
     public override void OnUpdate()
     {
+        if (InGame.instance == null)
+            return;
+
         if (ShowDescription.JustPressed())
         {
             var c = GameManager.Instance.GetCard();
 
             if (c == null)
-            {
                 Log("No card is selected");
-            }
             else
-            {
-                Console.WriteLine();
-                Log($"Here is the description of the card \'{c.DisplayName}\'", null);
-                Log(c.Description, null);
-            }
+                UIManager.CreatePopupCard(c);
         }
     }
 
@@ -71,22 +73,23 @@ public class BTDAdventure : BloonsTD6Mod
         {
             GameManager.Instance.StartGame();
 
-            // Blurry BG
+            _wasFromMe = false; // Reset
+        }
+        else
+        {
+            GameObject.Find("Engine")?.transform.Find("Objects")?.gameObject.SetActive(true);
+
+            // Remove every camera that has ShaderEngine_CameraBehavior
             if (Camera.allCameras.Count > 0)
             {
                 foreach (Camera cam in Camera.allCameras)
                 {
-                    if (cam.gameObject.name == "SelectedTowerOutline")
-                        continue;
-
-                    if (!cam.gameObject.HasComponent<ShaderEngine_CameraBehavior>())
+                    if (cam.gameObject.HasComponent<ShaderEngine_CameraBehavior>(out var shader))
                     {
-                        cam.gameObject.AddComponent<ShaderEngine_CameraBehavior>();
+                        shader.UseShader = false;
                     }
                 }
             }
-
-            _wasFromMe = false; // Reset
         }
     }
 
@@ -103,7 +106,7 @@ public class BTDAdventure : BloonsTD6Mod
 
         if (playSocialScene.rootCount < 1)
         {
-            ModHelper.Error<BTDAdventure>("Expected at least one root gameobject in PlaySocialUI");
+            ModHelper.Error<Main>("Expected at least one root gameobject in PlaySocialUI");
             return;
         }
 
@@ -133,7 +136,7 @@ public class BTDAdventure : BloonsTD6Mod
 
         if (buttonOG == null)
         {
-            ModHelper.Error<BTDAdventure>("No button has been found.");
+            ModHelper.Error<Main>("No button has been found.");
             return;
         }
 
@@ -151,7 +154,7 @@ public class BTDAdventure : BloonsTD6Mod
             InGameData.Editable.selectedMap = "MiddleOfTheRoad"; // Map type
 
             // Does not matter
-            InGameData.Editable.selectedMode = "Clicks";
+            InGameData.Editable.selectedMode = "Easy";
             InGameData.Editable.selectedDifficulty = "Easy";
             // ---
 
@@ -159,4 +162,21 @@ public class BTDAdventure : BloonsTD6Mod
             UI.instance.LoadGame();
         }));
     }
+
+    #region Settings
+    internal static ModSettingDouble EnemySpeed = new(0.25)
+    {
+        min = 0,
+        max = 2,
+        slider = true,
+        displayName = "Enemy Delay",
+        description = "Determines the amount of seconds the enemy will have to wait before acting"
+    };
+
+    internal static ModSettingBool ShowCardCursor = new(true)
+    {
+        displayName = "Card Cursor",
+        description = "Determines if the card cursor should be showed or not"
+    };
+    #endregion
 }

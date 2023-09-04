@@ -2,14 +2,14 @@
 
 namespace BTDAdventure.Effects;
 
-internal class WoundEffect : Effect, IPostActionEffect
+internal class WoundEffect : Effect, IActionEffect
 {
     protected override string Name => "Wound";
     protected override string? Image => UIManager.WoundIcon;
 
     public bool CheckEntityType => false;
 
-    void IPostActionEffect.OnEntityPlayed(Entity entity)
+    void IActionEffect.OnEntityPlay(Entity entity)
     {
         entity.ReceiveDamage(null, new Damage()
         {

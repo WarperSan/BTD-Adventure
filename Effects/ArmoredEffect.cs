@@ -8,7 +8,7 @@ internal class ArmoredEffect : Effect, IShieldEffect
     protected override string Name => "Armored";
     protected override string? Image => "Ui[BTDAdventure-icon_permashield]";
 
-    public int ModifyAmount(int amount) => amount;
+    public void ModifyAmount(ref int amount) { }
 
-    public bool ShouldKeepShield() => true;
+    public void ShouldKeepShield(ref bool keepShield) => keepShield = true;
 }

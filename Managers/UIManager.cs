@@ -3,7 +3,12 @@ using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Entities;
 using Il2Cpp;
+using Il2CppAssets.Scripts.Unity;
+using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
+using Il2CppAssets.Scripts.Unity.UI_New.Popups;
+using Il2CppAssets.Scripts.Utils;
+using Il2CppNinjaKiwi.Common;
 using Il2CppTMPro;
 using System;
 using UnityEngine;
@@ -27,6 +32,7 @@ internal class UIManager
     public const string BurnIcon = "Ui[BTDAdventure-icon_burn]";
     public const string FrailIcon = "Ui[BTDAdventure-icon_frail]";
     public const string ThornsIcon = "Ui[BTDAdventure-icon_thorns]";
+    public const string OverchargedIcon = "Ui[BTDAdventure-icon_overcharged]";
 
     public const float TopValueFontSize = 125;
     #endregion
@@ -35,11 +41,11 @@ internal class UIManager
     private Transform? PlayerCardsHolder;
     private readonly GameObject?[] PlayerCards = new GameObject?[MaxPlayerCardCount];
 
-    private Button? EndTurnBtn;
+    internal Button? EndTurnBtn;
 
     private GameObject? LoadingScreen;
 
-    public Transform? SetUpMainUI()
+    internal Transform? SetUpMainUI()
     {
         SetActiveUiRect(false);
 
@@ -50,17 +56,36 @@ internal class UIManager
 
         Transform mainUI = UnityEngine.Object.Instantiate(mainUIprefab, InGame.instance.GetInGameUI().transform).transform;
 
+        // Engine Object
+        var engineObject = GameObject.Find("Engine").transform;
+        menuManager = engineObject.Find("Game")?.GetComponent<MenuManager>();
+        engineObject.Find("Objects")?.gameObject.SetActive(false); // Disable track arrows
+        // ---
+
         LoadingScreen = mainUI.Find("LoadingUI")?.gameObject;
         LoadingScreen?.transform.Find("Wheel").GetComponent<Image>().SetSprite(VanillaSprites.LoadingWheel);
 
         SetUpVictoryUI(mainUI);
         SetUpRewardUI(mainUI);
+        SetUpMapUI(mainUI);
 
-        EnemyCardsHolder = mainUI.Find("GameUI/EnemyCardsHolder");
-        PlayerCardsHolder = mainUI.Find("GameUI/PlayerCards/Holder");
+        // Game UI
+        GameUI = mainUI.Find("GameUI").gameObject;
+        // ---
 
-        EndTurnBtn = mainUI.Find("Overlay/Button").GetComponent<Button>();
-        EndTurnBtn.onClick.AddListener(new Function(GameManager.Instance.EndTurn));
+        EnemyCardsHolder = GameUI.transform.Find("EnemyCardsHolder");
+        PlayerCardsHolder = GameUI.transform.Find("PlayerCards/Holder");
+
+        // End Btn
+        var endTurnObject = GameUI.transform.Find("EndTurn");
+        InitializeText(endTurnObject.Find("Text"), 20, TextAlignmentOptions.Baseline, initialText: "END TURN");
+        EndTurnBtn = endTurnObject.GetComponent<Button>();
+        EndTurnBtn.onClick.AddListener(new Function(() =>
+        {
+            this.EndTurnBtn.interactable = false;
+            GameManager.Instance.EndTurn();
+        }));
+        // ---
 
         // Enemies
         EnemyCardPrefab = InitializeEnemyPrefab();
@@ -76,6 +101,11 @@ internal class UIManager
 
         return mainUI;
     }
+
+    #region GameUI
+    internal GameObject? GameUI;
+    private MenuManager? menuManager;
+    #endregion
 
     #region Victory UI
     internal GameObject? VictoryUI;
@@ -138,6 +168,15 @@ internal class UIManager
         }
         return RewardCardPrefab;
     }
+
+    internal static void CreatePopupReward(RewardManager.Reward? reward)
+    {
+        if (!reward.HasValue)
+            return;
+
+        if (reward.Value.HeroCard != null)
+            CreatePopupCard(reward.Value.HeroCard);
+    }
     #endregion
 
     internal static NK_TextMeshProUGUI? InitializeText(
@@ -160,7 +199,7 @@ internal class UIManager
         text.fontSize = fontSize;
         text.font = font ?? Fonts.Btd6FontTitle;
         text.alignment = textAlignment ?? TextAlignmentOptions.Center;
-        text.text = initialText;
+        text.UpdateText(initialText);
 
         return text;
     }
@@ -169,7 +208,10 @@ internal class UIManager
     internal void InitPlayerCards()
     {
         if (GameManager.Instance.PlayerCardPrefab == null)
+        {
+            Log("\'PlayerCardPrefab\' was not defined");
             return;
+        }
 
         int targetX = Mathf.CeilToInt(MaxEnemiesCount / 2f);
 
@@ -238,8 +280,23 @@ internal class UIManager
 
     private static void SetUpCard(GameObject root, HeroCard template)
     {
+        bool isBlocked = GameManager.Instance.Player?.BlockCardOnDraw(template) ?? false;
+
         root.transform.Find("Portrait").GetComponent<Image>().SetSprite(template.Portrait);
         root.transform.Find("Background").GetComponent<Image>().SetSprite(template.GetBackgroundGUID());
+
+        root.transform.GetComponent<Button>().interactable = !isBlocked;
+        root.transform.Find("BlockFrame").gameObject.SetActive(isBlocked);
+    }
+
+    internal static void CreatePopupCard(HeroCard card)
+    {
+        PopupScreen.instance.SafelyQueue(screen => screen.ShowOkPopup(card.RewardDescription));
+    }
+
+    internal void SetCardCursorState(int index, bool state)
+    {
+        PlayerCards[index]?.transform?.Find("SelectCard")?.gameObject?.SetActive(state);
     }
     #endregion
 
@@ -280,7 +337,7 @@ internal class UIManager
     }
     internal void SetEnemyState(bool state, int position) => EnemiesObject[position]?.SetActive(state);
 
-    internal void KillEnemy(int position) => MelonLoader.MelonCoroutines.Start(EnemyDies(position));
+    internal void KillEnemy(int position, EnemyEntity? entity) => MelonLoader.MelonCoroutines.Start(EnemyDies(position, entity));
 
     internal static GameObject? InitializeEnemyPrefab()
     {
@@ -297,8 +354,24 @@ internal class UIManager
     }
     #endregion
 
+    #region Map
+    internal MapGenerator? MapGenerator;
+    private void SetUpMapUI(Transform mainUI)
+    {
+        MapGenerator = mainUI.Find("MapGenerator").gameObject.AddComponent<MapGenerator>();
+
+        MapGenerator.SetUp(MapGenerator.transform.Find("Scroll View/Viewport/Content/MapObjects")?.GetComponent<RectTransform>());
+        MapGenerator.GenerateMap(new Vector2(5, 15), UnityEngine.Random.Range(0, 100), 4);
+        MapGenerator.ProgressLayer();
+    }
+    #endregion
+
     #region Static
-    private static void SetLockState(bool state, GameObject card) => card.transform.Find("WaitFrame").gameObject.SetActive(state);
+    private static void SetLockState(bool state, GameObject card)
+    {
+        card.GetComponent<Button>().enabled = !state;
+        card.transform.Find("WaitFrame").gameObject.SetActive(state);
+    }
 
     internal static void SetActiveUiRect(bool isActive)
     {
@@ -332,21 +405,26 @@ internal class UIManager
     {
         LoadingScreen?.SetActive(true);
 
+        if (menuManager != null)
+            menuManager.enabled = false;
+
         Animator? animator = LoadingScreen?.GetComponent<Animator>();
 
         preLoad?.Invoke();
         yield return new WaitForEndOfFrame(); // Wait for load
 
-        if (animator != null)
-            animator.Play("LoadingFadeIn");
+        animator?.Play("LoadingFadeIn");
         yield return new WaitForSeconds(0.75f); // Wait for fade in
 
         postLoad?.Invoke();
         yield return new WaitForEndOfFrame(); // Wait for load
 
-        if (animator != null)
-            animator.Play("LoadingFadeOut");
-        yield return new WaitForSeconds(0.75f); // Wait for fade out
+        animator?.Play("LoadingFadeOut");
+
+        if (menuManager != null)
+            menuManager.enabled = true;
+
+        yield return new WaitForSeconds(0.25f); // Wait for fade out
 
         LoadingScreen?.SetActive(false);
     }
@@ -369,7 +447,7 @@ internal class UIManager
         yield return new WaitForSeconds(0.1667f); // Wait for animation
     }
 
-    IEnumerator EnemyDies(int position)
+    IEnumerator EnemyDies(int position, EnemyEntity? entity)
     {
         GameObject? enemy = EnemiesObject[position];
 
@@ -385,6 +463,9 @@ internal class UIManager
             yield return new WaitForSeconds(0.6667f); // Wait for animation
 
             SetEnemyState(false, position);
+            EnemiesObject[position]?.transform.Find("Shield")?.gameObject.SetActive(false); // Disable shield on death
+
+            entity?.EffectVisual.DestroyAllChildren();
         }
         else
             yield return new WaitForEndOfFrame();

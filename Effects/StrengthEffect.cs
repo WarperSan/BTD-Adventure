@@ -11,9 +11,8 @@ public class StrengthEffect : Effect, IAttackEffect
     protected override string Name => "Strength";
     protected override string? Image => throw new NotImplementedException();
 
-    public Damage ModifyDamage(Entity entity, Damage damage)
+    public void ModifyDamage(Entity entity, ref Damage damage)
     {
         damage.Amount += Level;
-        return damage;
     }
 }

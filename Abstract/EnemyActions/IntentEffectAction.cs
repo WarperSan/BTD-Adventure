@@ -45,9 +45,8 @@ public abstract class IntentEffectAction : IntentAttackAction
             if (i + 1 < Effects.Count)
                 text += "-";
 
-            i++;
+            ++i;
         }
-
         return text;
     }
 }

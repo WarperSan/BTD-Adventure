@@ -40,12 +40,11 @@ public class WarriorClass : RogueClass
             new DartMonkey000(),
             new DartMonkey000(),
             new DartMonkey000(),
+            new DartMonkey000(),
             new WizardMonkey000(),
             new MonkeyVillage000(),
             new MonkeyVillage000(),
             new MonkeyVillage000(),
-            new GlueGunner000(),
-            new Druid030(),
             /*
             new DartMonkey000(),
             new DartMonkey000(),

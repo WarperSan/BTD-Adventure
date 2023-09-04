@@ -1,29 +1,15 @@
 List of things to do
 
 Very important:
-- Choose card
-- Choose enemy target
-- Level generator
-- Replace end turn btn display
-- Disable end turn btn when enemy turn
-- Fix shied ui on death
+- Fix animation glitch
+- Add death
+- Fix when the effects get depete
 
 Fairly important:
 - Rogue Class effects
 - Skills
-- Fix effect level text
-- Immune effect
-- Overcharge effect
 - Resistance effect
 - Curse effect
-
-- No Primary Effect
-- No Military Effect
-- No Magic Effect
-- No Support Effect
-- No Items Effect
-- No Hero Effect
-- No Paragon Effect
 
 - Disable all keybinds (or redirect some)
 - Merchant screen (copy the btd6 shop)
@@ -31,7 +17,6 @@ Fairly important:
 - Add particle for effects
 
 Slightly important:
-- Fix enemy HP bar on death
 - Class selection menu
 - Save file system
 - Replace curtain bottom
@@ -40,7 +25,7 @@ Slightly important:
 - Replace reward item banner
 
 Not important:
-- Background blur
+- Invistigate why Blur mat gets loaded twice
 
 Complete:
 - Remove default UI
@@ -61,21 +46,66 @@ Complete:
 - Enemy Death Animation
 - No infinite battles
 - Enemy Shield
-- Weakness effect
-- x2 Damage effect
-- Strength effect
-- Armored effect
+- Change the camera pov to cover the black void
+- Background blur (make it darker)
+- Change the effect system to an event based
+- Choose card
+- Choose enemy target
+
+- Add the Slash texture on nodes won
+- Add pop up for cards' description
+- Add color changing number depending on increase/decrease
+- Add posibility to restart by quiting
+
+- Remove blur if game is load not from me
+- Remove track arrows
+- Remove CHIMPS popup
+
 - Generate rewards
+- Level generator
+
 - Port HeroCard to ModContent
 - Port EnemyAction to ModContent
 - Port RogueClass to ModContent
 - Port EnemyCard to ModContent
+
 - Fix swing animation
+- Fix shied ui on death
+- Fix effect level text
+- Fix Map movement
+- Fix rewards UI (make it cover the entire screen)
+- Fix thorns (dont get clear on round end)
+- Fix enemy HP bar
+- Fix color damage alteration
+
+- Replace end turn btn display
+- Disable end turn btn when enemy turn
+
+- Weakness effect
+- x2 Damage effect
+- Strength effect
+- Armored effect
 - Wound effect
 - Burn effect
 - Poison effect
 - Frail effect
 - Thorns effect
 - Card descriptions
+- Immune effect
+- No Primary Effect
+- No Military Effect
+- No Magic Effect
+- No Support Effect
+- No Items Effect
+- No Hero Effect
+- No Paragon Effect
+- Block Primary Effect
+- Block Military Effect
+- Block Magic Effect
+- Block Support Effect
+- Block Items Effect
+- Block Hero Effect
+- Block Paragon Effect
+- Overcharged effect
 
 Canceled (Reason):

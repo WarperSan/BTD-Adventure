@@ -109,8 +109,8 @@ public class EnemyEntity : Entity
         if (HealthSlider != null)
         {
             HealthSlider.maxValue = MaxHealth;
-            HealthSlider.minValue = Math.Min(HealthSlider.minValue, Health);
-            HealthSlider.value = Health;
+            //HealthSlider.minValue = Math.Min(HealthSlider.minValue, Health);
+            HealthSlider.value = Math.Max(0, Health);
         }
     }
 
@@ -270,6 +270,7 @@ public class EnemyEntity : Entity
     protected override void SetUpEffectUI(GameObject root)
     {
         EffectHolder = root.transform.Find("Status")?.gameObject;
+        EffectVisual = root.transform.Find("EffectVisual");
     }
 
     protected override void OnEffectAdded<T>()

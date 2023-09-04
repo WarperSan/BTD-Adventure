@@ -34,7 +34,7 @@ public abstract class Entity
     protected NK_TextMeshProUGUI? HealthText;
     protected GameObject? HealthImg;
 
-    protected bool IsAlive => Health > 0;
+    public bool IsAlive => Health > 0;
 
     /// <summary>
     /// Called whenever the health UI needs an update
@@ -51,6 +51,11 @@ public abstract class Entity
         // Check for own skills to modify damage
         // Check for own ability to modify damage
 
+        if (source != null)
+        {
+            OnPreAttacked?.Invoke(this, source);
+        }
+
         if (damage.IgnoresShield)
         {
             RemoveHealth(damage.Amount);
@@ -62,11 +67,7 @@ public abstract class Entity
 
         if (source != null)
         {
-            // IAttackedEffect
-            ExecuteOnEffect(this, new Action<IAttackedEffect>(effect =>
-            {
-                effect.OnEffect(this, source);
-            }));
+            OnPostAttacked?.Invoke(this, source);
         }
     }
     public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
@@ -75,6 +76,8 @@ public abstract class Entity
     protected void AddHealth(int amount) => ModifyHealth(amount, false);
     private void ModifyHealth(int amount, bool isRemoving)
     {
+        //this.ExecuteOnEffect(new Func<IHealthEffect, bool>((effect) => { amount = effect.ModifyAmount(amount); }));
+
         if (isRemoving)
         {
             Health -= amount;
@@ -200,7 +203,7 @@ public abstract class Entity
         int amount = BaseShield;
 
         // Apply skills
-        ExecuteOnEffect(this, new Action<IShieldEffect>(shieldEffect => { amount = shieldEffect.ModifyAmount(amount); }));
+        OnShieldModify?.Invoke(ref amount);
 
         return amount;
     }
@@ -209,14 +212,8 @@ public abstract class Entity
     {
         bool result = false;
 
-        ExecuteOnEffect(this, new Action<IShieldEffect>(shieldEffect =>
-        {
-            result |= shieldEffect.ShouldKeepShield();
+        OnShieldKeep?.Invoke(ref result);
 
-            // Optimisation possible
-            //if (result)
-            //    break;
-        }));
         return result;
     }
     #endregion
@@ -235,10 +232,10 @@ public abstract class Entity
             damage.Amount += GameManager.Instance.FightDifficulty;
 
         // Apply skills
-        ExecuteOnEffect(this, new Action<IAttackEffect>(target =>
-        {
-            damage = target.ModifyDamage(this, damage);
-        }));
+
+        // Apply effects
+        OnDamageModify?.Invoke(this, ref damage);
+
         return damage.Amount;
     }
 
@@ -263,9 +260,10 @@ public abstract class Entity
     #endregion
 
     #region Effects
-    readonly List<Effect> _effects = new();
+    internal readonly List<Effect> _effects = new();
 
     protected GameObject? EffectHolder;
+    internal Transform? EffectVisual;
 
     /// <summary>
     /// Updates the counter of all effects and removes effects if necessary
@@ -288,10 +286,9 @@ public abstract class Entity
 
     private Effect? GetEffect<T>() where T : Effect
     {
-        Type effectType = typeof(T);
         foreach (var item in _effects)
         {
-            if (effectType.IsAssignableFrom(item.GetType()))
+            if (item is T)
                 return item;
         }
         return null;
@@ -314,6 +311,8 @@ public abstract class Entity
                 null;
 
             effect.SetUpUI(this, effectObject);
+
+            Subscribe(effect);
 
             _effects.Add(effect);
             OnEffectAdded<T>();
@@ -355,7 +354,11 @@ public abstract class Entity
     /// Removes the given effect
     /// </summary>
     /// <returns><inheritdoc cref="List{T}.Remove(T)"/></returns>
-    public bool RemoveEffect(Effect effect) => _effects.Remove(effect);
+    public bool RemoveEffect(Effect effect)
+    {
+        Unsubscribe(effect);
+        return _effects.Remove(effect);
+    }
 
     /// <summary>
     /// Removes all effects matching the given condition
@@ -366,11 +369,13 @@ public abstract class Entity
 
         for (int i = _effects.Count - 1; i >= 0; i--)
         {
-            if (condition.Invoke(_effects[i]))
+            var effect = _effects[i];
+
+            if (condition.Invoke(effect))
             {
-                effectsRemoved.Add(_effects[i]);
-                _effects[i].RemoveEffect();
-                _effects.RemoveAt(i);
+                effectsRemoved.Add(effect);
+                effect.RemoveEffect();
+                this.RemoveEffect(effect);
             }
         }
         return effectsRemoved.ToArray();
@@ -400,21 +405,142 @@ public abstract class Entity
     public int AddPermanentLevel<T>(int amount) where T : Effect => AddPermanentLevel(GetOrCreateEffect<T>(), amount);
     #endregion
 
-    internal static void ExecuteOnEffect<T>(Entity target, Action<T>? onTrue = null, Action<Effect>? onFalse = null) where T : IEffect
-    {
-        foreach (var item in target._effects)
-        {
-            if (item is T iEffect)
-                onTrue?.Invoke(iEffect);
-            else
-                onFalse?.Invoke(item);
+    internal void PlayEffectVisual(string assetName) => PlayEffectVisual(LoadAsset<GameObject>(assetName));
 
-            if (!target.IsAlive)
-                break;
+    /// <summary>
+    /// Instantiates <paramref name="effect"/>
+    /// </summary>
+    public void PlayEffectVisual(GameObject? effect)
+    {
+        if (effect != null && EffectVisual != null)
+        {
+            GameObject.Instantiate(effect, EffectVisual);
         }
     }
 
     protected virtual void SetUpEffectUI(GameObject root) { }
     protected virtual void OnEffectAdded<T>() where T : Effect { }
+    #endregion
+
+    #region Events
+    private delegate void ShieldKeepEvent(ref bool keepShield);
+    private event ShieldKeepEvent OnShieldKeep;
+
+    private delegate void ShieldModifyEvent(ref int amount);
+    private event ShieldModifyEvent OnShieldModify;
+
+    private delegate void AttackedEvent(Entity source, Entity attacker);
+    private event AttackedEvent OnPreAttacked;
+    private event AttackedEvent OnPostAttacked;
+
+    private delegate void DamageModifyEvent(Entity entity, ref Damage amount);
+    private event DamageModifyEvent OnDamageModify;
+
+    #region Turn Event
+    private delegate void TurnEvent(Entity entity);
+    private event TurnEvent OnPreTurn;
+    internal void PreTurn()
+    {
+        this.ClearShield();
+        OnPreTurn?.Invoke(this);
+    }
+
+    private event TurnEvent OnPostTurn;
+    internal void PostTurn() => OnPostTurn?.Invoke(this);
+    #endregion
+
+    #region Action Event
+    private delegate void ActionEvent(Entity source, HeroCard? card);
+    private event ActionEvent OnPreAction;
+    internal void PreAction(HeroCard? card = null) => OnPreAction?.Invoke(this, card);
+
+    private event ActionEvent OnPostAction;
+    internal void PostAction(HeroCard? card = null) => OnPostAction?.Invoke(this, card);
+    #endregion
+
+    private delegate void HealthModifyEvent(ref int amount);
+    private event HealthModifyEvent OnHealthModify;
+
+    private void Subscribe(Effect effect)
+    {
+        if (effect is IShieldEffect shieldEffect)
+        {
+            OnShieldKeep += shieldEffect.ShouldKeepShield;
+            OnShieldModify += shieldEffect.ModifyAmount;
+        }
+
+        if (effect is IAttackedEffect attackedEffect)
+        {
+            OnPreAttacked += attackedEffect.OnPreAttacked;
+            OnPostAttacked += attackedEffect.OnPostAttacked;
+        }
+
+        if (effect is IAttackEffect attackEffect)
+        {
+            OnDamageModify += attackEffect.ModifyDamage;
+        }
+
+        if (effect is ITurnEffect turnEffect)
+        {
+            OnPreTurn += turnEffect.OnPreTurn;
+            OnPostTurn += turnEffect.OnPostTurn;
+        }
+
+        if (effect is IActionEffect actionEffect)
+        {
+            OnPreAction += actionEffect.OnAction;
+            OnPostAction += actionEffect.OnAction;
+        }
+
+        if (effect is IHealthEffect healthEffect)
+        {
+            OnHealthModify += healthEffect.ModifyAmount;
+        }
+
+        ChildrenSubscribe(effect);
+    }
+
+    protected virtual void ChildrenSubscribe(Effect effect) { }
+
+    private void Unsubscribe(Effect effect)
+    {
+        if (effect is IShieldEffect shieldEffect)
+        {
+            OnShieldKeep -= shieldEffect.ShouldKeepShield;
+            OnShieldModify -= shieldEffect.ModifyAmount;
+        }
+
+        if (effect is IAttackedEffect attackedEffect)
+        {
+            OnPreAttacked -= attackedEffect.OnPreAttacked;
+            OnPostAttacked -= attackedEffect.OnPostAttacked;
+        }
+
+        if (effect is IAttackEffect attackEffect)
+        {
+            OnDamageModify -= attackEffect.ModifyDamage;
+        }
+
+        if (effect is ITurnEffect turnEffect)
+        {
+            OnPreTurn -= turnEffect.OnPreTurn;
+            OnPostTurn -= turnEffect.OnPostTurn;
+        }
+
+        if (effect is IActionEffect actionEffect)
+        {
+            OnPreAction -= actionEffect.OnAction;
+            OnPostAction -= actionEffect.OnAction;
+        }
+
+        if (effect is IHealthEffect healthEffect)
+        {
+            OnHealthModify -= healthEffect.ModifyAmount;
+        }
+
+        ChildrenUnsubscribe(effect);
+    }
+
+    protected virtual void ChildrenUnsubscribe(Effect effect) { }
     #endregion
 }

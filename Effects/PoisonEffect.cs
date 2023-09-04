@@ -2,13 +2,14 @@
 
 namespace BTDAdventure.Effects;
 
-internal class PoisonEffect : Effect, IPreTurnEffect
+internal class PoisonEffect : Effect, ITurnEffect
 {
     protected override string Name => "Poison";
     protected override string? Image => UIManager.PoisonIcon;
 
-    void IPreTurnEffect.OnEffect(Entity entity)
+    void ITurnEffect.OnPreTurn(Entity entity)
     {
         entity.ReceiveDamage(null, Level);
+        entity.PlayEffectVisual("PoisonEffect");
     }
 }

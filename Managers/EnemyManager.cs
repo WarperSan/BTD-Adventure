@@ -56,7 +56,7 @@ internal class EnemyManager
     {
         var enemies = new Type?[MaxEnemiesCount];
 
-        uint risk = (uint)Random.Range(3, 29);
+        uint risk = (uint)Random.Range(3, 3);
         uint min = 0;
 
         // R5

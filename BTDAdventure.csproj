@@ -8,6 +8,7 @@
         <LangVersion>latest</LangVersion>
         <Optimize>False</Optimize>
         <DebugType>embedded</DebugType>
+        <BaseOutputPath>C:\Program Files (x86)\Steam\steamapps\common\BloonsTD6\Mods</BaseOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
       <LangVersion>preview</LangVersion>
@@ -21,6 +22,8 @@
       <None Remove="Images\Effects\icon_burn.png" />
       <None Remove="Images\Effects\icon_enemy_weak.png" />
       <None Remove="Images\Effects\icon_frail.png" />
+      <None Remove="Images\Effects\icon_immune.png" />
+      <None Remove="Images\Effects\icon_overcharged.png" />
       <None Remove="Images\Effects\icon_permashield.png" />
       <None Remove="Images\Effects\icon_poison.png" />
       <None Remove="Images\Effects\icon_wound.png" />
@@ -31,6 +34,11 @@
       <None Remove="Images\Icons\intent_negate.png" />
       <None Remove="Images\Icons\intent_pause.png" />
       <None Remove="Images\Icons\intent_shield-1.png" />
+      <None Remove="Images\MapIcons\map_boss_old.png" />
+      <None Remove="Images\MapIcons\map_elite_old.png" />
+      <None Remove="Images\MapIcons\map_merchant_old.png" />
+      <None Remove="Images\MapIcons\map_normal_old.png" />
+      <None Remove="Images\MapIcons\map_treasure_old.png" />
     </ItemGroup>
 
     <Import Project="..\btd6.targets" />

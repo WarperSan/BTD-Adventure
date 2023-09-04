@@ -1,4 +1,6 @@
 ﻿using BTD_Mod_Helper.Api;
+using BTD_Mod_Helper.Extensions;
+using BTDAdventure.Components;
 using BTDAdventure.Entities;
 using System;
 using System.Collections.Generic;
@@ -15,14 +17,13 @@ internal class GameManager
 
     internal static GameManager Instance { get; set; } = new();
 
-
     internal void Initialize()
     {
         EffectsType = InitializeAirport<Effect>();
 
         this.EnemyManager = new();
 
-        MainBundle = ModContent.GetBundle<BTDAdventure>("btdadventure");
+        MainBundle = ModContent.GetBundle<Main>("btdadventure");
         Log("Bundle Loaded");
     }
 
@@ -97,19 +98,6 @@ internal class GameManager
     public bool IsTypeAnEffect(Type type) => IsGivenTypeInArray<Effect>(EffectsType, type, true);
     #endregion
 
-
-    /// Game Loop:
-    /// - You enter a fight
-    ///     - Get enemies group
-    ///     - Build player
-    ///     - Build skills
-    ///     - Build deck
-    /// - You play 0-3 cards
-    /// - You end your turn
-    /// - Each enemy do their action
-    /// - Repeat cards play if the player is alive
-    /// 
-
     #region Piles
     private readonly List<HeroCard> _globalCardList = new();
     private readonly List<HeroCard> _exileCardList = new();
@@ -123,26 +111,34 @@ internal class GameManager
     #endregion
 
     #region Managers
-    private UIManager? UiManager;
+    internal UIManager? UiManager;
     private EnemyManager? EnemyManager;
     #endregion
 
-    private bool _isFirstFight = true;
+    private bool _isFirstFight;
 
     // Prevents infinite battles.
     // Each X turns, enemies will gain +1 base damage
     private const byte TurnsPerDifficulty = 10;
-    public int TurnCount { get; private set; }
     private byte _turnCount = 0;
     internal int FightDifficulty = 0;
 
     internal void StartGame()
     {
-        RewardCardPrefab = UIManager.InitializeRewardPrefab();
-        EffectSlotPrefab = GameObject.Instantiate(LoadAsset<GameObject>("EffectSlot"));
+        Reset();
 
-        PlayerCardPrefab = LoadAsset<GameObject>("Card");
+        // Initialize Prefabs
+        RewardCardPrefab ??= UIManager.InitializeRewardPrefab();
+        EffectSlotPrefab ??= GameObject.Instantiate(LoadAsset<GameObject>("EffectSlot"));
+        PlayerCardPrefab ??= GameObject.Instantiate(LoadAsset<GameObject>("Card"));
+        Main.blurMat = LoadAsset<Material>("BlurMat");
 
+        TaskScheduler.ScheduleTask(new Action(() =>
+        {
+            Main.blurMat = LoadAsset<Material>("BlurMat");
+        }), BTD_Mod_Helper.Api.Enums.ScheduleType.WaitForFrames, 3);
+
+        // Create UIManager
         UiManager = new();
 
         // Remove base UI & add bundle UI
@@ -154,6 +150,27 @@ internal class GameManager
             return;
         }
 
+        // Blurry BG
+        if (Camera.allCameras.Count > 0)
+        {
+            foreach (Camera cam in Camera.allCameras)
+            {
+                if (cam.gameObject.name == "SelectedTowerOutline")
+                    continue;
+
+                if (!cam.gameObject.HasComponent<ShaderEngine_CameraBehavior>())
+                {
+                    cam.gameObject.AddComponent<ShaderEngine_CameraBehavior>();
+                }
+
+                var rect = cam.pixelRect;
+                rect.width *= 2;
+                rect.height = rect.width;
+                cam.pixelRect = rect;
+            }
+        }
+
+        // Create Player entity
         Player = new(mainUI.gameObject, 50, new WarriorClass());
 
         List<HeroCard> c = Player.RogueClass.InitialCards();
@@ -164,10 +181,11 @@ internal class GameManager
             _globalCardList.Add(item);
         }
 
-        StartFight();
+        Player?.UpdatePlayerUI(); // Put values on the labels
+        UiManager?.GameUI?.SetActive(false);
     }
 
-    internal void StartFight()
+    internal void StartFight(string type, string world)
     {
         try
         {
@@ -184,7 +202,7 @@ internal class GameManager
 
             // Get enmies group
             // Build enemies
-            PopulateEnemies("normal", "forest");
+            PopulateEnemies(type, world);
 
             StartPlayerTurn();
 
@@ -260,40 +278,10 @@ internal class GameManager
         Player?.UpdatePiles();
     }
 
-    /// <summary>
-    /// Spawns a random encounter depending on the given parameters
-    /// </summary>
-    /// <param name="encounterType">Type of the encounter (Normal, Elite, Boss)</param>
-    /// <param name="world">Name of the current world</param>
-    private void PopulateEnemies(string encounterType, string world)
-    {
-        if (this.EnemyManager == null)
-        {
-            Log("Enemy Manager was not defined.");
-            return;
-        }
-
-        Type?[] enemies = this.EnemyManager.GenerateEnemies(encounterType, world);
-
-        for (int i = 0; i < enemies.Length; i++)
-        {
-            Type? item = enemies[i];
-
-            if (item == null)
-            {
-                UiManager?.SetEnemyState(false, i);
-                continue;
-            }
-
-            AddEnemy(item);
-        }
-    }
-
     private void StartPlayerTurn()
     {
         // Increases general difficulty
         _turnCount++;
-        TurnCount++;
 
         if (_turnCount >= TurnsPerDifficulty)
         {
@@ -327,12 +315,15 @@ internal class GameManager
         Player?.ResetMana();
 
         // Fill hand
-        FillHand(MaxPlayerCardCount, swingAnimation: TurnCount != 1);
+        FillHand(MaxPlayerCardCount, swingAnimation: _turnCount != 1);
 
         // Check pre-turn skills
 
         // Unlock all cards
-        //UiManager.SetLockState(false); // Handle by UIManager.SwingCard
+        UiManager?.SetLockState(false);
+
+        if (UiManager != null && UiManager.EndTurnBtn != null)
+            UiManager.EndTurnBtn.interactable = true;
     }
 
     private void EmptyHand(bool updatePiles = true)
@@ -347,6 +338,8 @@ internal class GameManager
             _hand[i] = null;
         }
 
+        UiManager?.SetLockState(true);
+
         if (updatePiles)
             Player?.UpdatePiles();
     }
@@ -354,6 +347,7 @@ internal class GameManager
     public void EndTurn()
     {
         EmptyHand();
+        SelectCard(-1);
         Player?.UpdateEffects();
 
         MelonLoader.MelonCoroutines.Start(ExecuteActionCoroutine());
@@ -379,50 +373,60 @@ internal class GameManager
         rewardManager.OpenRewardUI();
     }
 
-    private int tS = -1;
-    private int eS = -1;
-    internal HeroCard? GetCard() => tS == -1 ? null : _hand[tS];
+    internal void Reset()
+    {
+        // Reset first fight flag
+        _isFirstFight = true;
 
+        // Reset indexes
+        SelectedCardIndex = -1;
+        SelectedEnemyIndex = -1;
+
+        // Reset piles
+        _globalCardList.Clear();
+        _exileCardList.Clear();
+        _discardCardList.Clear();
+        _drawCardList.Clear();
+
+        // Reset enemies
+        for (int i = 0; i < _enemies.Length; i++) { _enemies[i] = null; }
+    }
+
+    #region Player
+    #region Card
+    internal void AddCard(HeroCard card) => _globalCardList.Add(card);
+
+    private int SelectedCardIndex = -1;
+    internal HeroCard? GetCard() => SelectedCardIndex == -1 ? null : _hand[SelectedCardIndex];
     internal void SelectCard(int index)
     {
-        tS = index;
+        if (SelectedCardIndex != -1)
+            UiManager?.SetCardCursorState(SelectedCardIndex, false);
 
-        Log("The current card selected is: " + tS);
+        SelectedCardIndex = index;
+
+        if (SelectedCardIndex != -1 && (bool)Main.ShowCardCursor.GetValue())
+            UiManager?.SetCardCursorState(SelectedCardIndex, true);
     }
+    #endregion
 
-    internal void SelectEnemy(int index)
-    {
-        eS = index;
+    #region Effect
+    internal int GetEffectLevelPlayer<T>() where T : Effect => GetEffectLevelTarget<T>(Player);
+    internal void AddPermanentLevelPlayer<T>(int amount) where T : Effect => AddPermaLevelToTarget<T>(null, Player, amount);
 
-        Log("The current enemy selected is: " + eS);
-
-        if (tS == -1 || Player?.Mana == 0)
-            return;
-
-        if (Player == null)
-        {
-            Log("No player instance was assigned.");
-            return;
-        }
-
-        // Play card
-        Player.RemoveMana(1);
-
-        _hand[tS]?.PlayCard();
-        Entity.ExecuteOnEffect(Player, new Action<IPostActionEffect>(effect =>
-        {
-            IPostActionEffect.OnAction(effect, Player, _hand[tS]);
-        }));
-
-        FillHand(1, tS, true);
-
-        tS = -1;
-        eS = -1;
-    }
-
-    public void AddCard(HeroCard card) => _globalCardList.Add(card);
+    /// <summary>
+    /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
+    /// </summary>
+    /// <remarks>
+    /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
+    /// </remarks>
+    internal void AddLevelPlayer<T>(int amount) where T : Effect => AddLevelToTarget<T>(null, Player, amount);
+    #endregion
 
     internal int GetPlayerDamage(int damage) => Player?.GetAttack(damage) ?? 0;
+
+    internal void GainMana(uint amount) => Player?.AddMana(amount);
+    #endregion
 
     #region Coroutines
     IEnumerator ExecuteActionCoroutine()
@@ -433,20 +437,9 @@ internal class GameManager
         if (Player != null)
             Player.AreCardsLocked = true;
 
-        foreach (var item in _enemies) { item?.ClearShield(); }
+        foreach (var item in _enemies) item?.PreTurn();
 
-        float value = (float)(double)BTDAdventure.EnemySpeed.GetValue();
-
-        foreach (var item in _enemies)
-        {
-            if (item == null)
-                continue;
-
-            Entity.ExecuteOnEffect(item, new Action<IPreTurnEffect>(effect =>
-            {
-                effect.OnEffect(item);
-            }));
-        }
+        float value = (float)(double)Main.EnemySpeed.GetValue();
 
         foreach (var item in _enemies)
         {
@@ -463,40 +456,68 @@ internal class GameManager
             }
             else
             {
-                Entity.ExecuteOnEffect(item, new Action<IPreActionEffect>(effect =>
+                if (Player == null)
                 {
-                    //IPreActionEffect.OnAction(effect, item, null);
-                }));
+                    Log("No instance of Player was defined.");
+                    continue;
+                }
+
+                item.PreAction();
 
                 yield return new WaitForSeconds(item.ExecuteIntent()); // Wait for animation
 
-                Entity.ExecuteOnEffect(item, new Action<IPostActionEffect>(effect =>
-                {
-                    IPostActionEffect.OnAction(effect, item, null);
-                }));
+                item.PostAction();
             }
         }
 
-        foreach (var item in _enemies)
-        {
-            if (item == null)
-                continue;
-
-            Entity.ExecuteOnEffect(item, new Action<IPostTurnEffect>(effect =>
-            {
-                effect.OnEffect(item);
-            }));
-        }
+        foreach (var item in _enemies) item?.PostTurn();
 
         StartPlayerTurn();
     }
     #endregion
 
     #region Enemy
+    private int SelectedEnemyIndex = -1;
     /// <summary>
     /// Array of the enemies. If the item is null, no enemy is at this position
     /// </summary>
     private readonly EnemyEntity?[] _enemies = new EnemyEntity?[MaxEnemiesCount];
+
+    internal void SelectEnemy(int index)
+    {
+        SelectedEnemyIndex = index;
+
+        Log("The current enemy selected is: " + SelectedEnemyIndex);
+
+        if (GetCard() == null || Player?.Mana == 0)
+            return;
+
+        if (Player == null)
+        {
+            Log("No player instance was assigned.");
+            return;
+        }
+
+        HeroCard? card = GetCard();
+
+        // Play card
+        Player.RemoveMana(1);
+
+        if (card != null)
+        {
+            Player.PreAction(card);
+
+            if (!Player.BlockCardOnPlay(card))
+                card.PlayCard();
+
+            Player.PostAction(card);
+        }
+
+        FillHand(1, SelectedCardIndex, true);
+
+        SelectCard(-1);
+        SelectedEnemyIndex = -1;
+    }
 
     /// <summary>
     /// Tries to add an enemy of type <paramref name="enemyType"/> to the scene
@@ -539,7 +560,7 @@ internal class GameManager
     /// Kills the <see cref="EnemyEntity"/> at <paramref name="position"/>
     /// </summary>
     /// <returns>The enemy at <paramref name="position"/> died correctly</returns>
-    public bool KillEnemy(int position)
+    internal bool KillEnemy(int position)
     {
         if (position < 0 || position >= _enemies.Length)
             return false;
@@ -551,8 +572,8 @@ internal class GameManager
 
         Player?.AddCoins(enemyKilled.GetCoinsGiven());
 
+        UiManager?.KillEnemy(position, _enemies[position]);
         _enemies[position] = null;
-        UiManager?.KillEnemy(position);
 
         // OnDeathAbility
 
@@ -577,10 +598,11 @@ internal class GameManager
         return validActions.Count > 0 ? validActions[0] : null;
     }
 
+    #region Attack
     /// <summary>
     /// Attacks the selected enemy with the given damage
     /// </summary>
-    internal void AttackEnemy(Damage damage) => AttackEnemy(damage, _enemies[eS]);
+    internal void AttackEnemy(Damage damage) => AttackEnemy(damage, _enemies[SelectedEnemyIndex]);
 
     /// <summary>
     /// Attacks all enemies the given damage
@@ -596,22 +618,16 @@ internal class GameManager
         damage.Amount = Player?.GetAttack() ?? 0;
         Player?.AttackTarget(damage, target);
     }
+    #endregion
 
+    #region Effect
     /// <summary>
     /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
     /// </summary>
     /// <remarks>
     /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
     /// </remarks>
-    internal void AddLevelPlayer<T>(int amount) where T : Effect => AddLevelToTarget<T>(null, Player, amount);
-
-    /// <summary>
-    /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
-    /// </summary>
-    /// <remarks>
-    /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
-    /// </remarks>
-    internal void AddLevelEnemy<T>(int amount) where T : Effect => AddLevelToTarget<T>(Player, _enemies[eS], amount);
+    internal void AddLevelEnemy<T>(int amount) where T : Effect => AddLevelToTarget<T>(Player, _enemies[SelectedEnemyIndex], amount);
 
     /// <summary>
     /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
@@ -620,7 +636,6 @@ internal class GameManager
     /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
     /// </remarks>
     internal void AddLevelToAll<T>(int amount) where T : Effect { foreach (var item in _enemies) AddLevelToTarget<T>(Player, item, amount); }
-
     private static void AddLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
     {
         if (source != null)
@@ -630,9 +645,6 @@ internal class GameManager
 
         target?.AddLevel<T>(amount);
     }
-
-    internal void AddPermanentLevelPlayer<T>(int amount) where T : Effect => AddPermaLevelToTarget<T>(null, Player, amount);
-
     private static void AddPermaLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
     {
         if (source != null)
@@ -642,9 +654,8 @@ internal class GameManager
 
         target?.AddPermanentLevel<T>(amount);
     }
-
-    internal int GetEffectLevelPlayer<T>() where T : Effect => GetEffectLevelTarget<T>(Player);
     private static int GetEffectLevelTarget<T>(Entity? target) where T : Effect => target?.GetEffectLevel<T>() ?? 0;
+    #endregion
 
     /// <returns>Count of enemies still alive</returns>
     public int GetEnemyCount()
@@ -657,6 +668,35 @@ internal class GameManager
                 count++;
         }
         return count;
+    }
+
+    /// <summary>
+    /// Spawns a random encounter depending on the given parameters
+    /// </summary>
+    /// <param name="encounterType">Type of the encounter (Normal, Elite, Boss)</param>
+    /// <param name="world">Name of the current world</param>
+    private void PopulateEnemies(string encounterType, string world)
+    {
+        if (this.EnemyManager == null)
+        {
+            Log("Enemy Manager was not defined.");
+            return;
+        }
+
+        Type?[] enemies = this.EnemyManager.GenerateEnemies(encounterType, world);
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            Type? item = enemies[i];
+
+            if (item == null)
+            {
+                UiManager?.SetEnemyState(false, i);
+                continue;
+            }
+
+            AddEnemy(item);
+        }
     }
     #endregion
 
@@ -723,6 +763,6 @@ internal class GameManager
     /// Called to display a message into the console
     /// </summary>
     public static void Log(object? obj, [System.Runtime.CompilerServices.CallerMemberName] string? source = null)
-        => BTD_Mod_Helper.ModHelper.GetMod<BTDAdventure>().LoggerInstance.Msg($"{(string.IsNullOrEmpty(source) ? "" : $"[{source}]")} {obj ?? "null"}");
+        => BTD_Mod_Helper.ModHelper.GetMod<Main>().LoggerInstance.Msg($"{(string.IsNullOrEmpty(source) ? "" : $"[{source}]")} {obj ?? "null"}");
     #endregion
 }

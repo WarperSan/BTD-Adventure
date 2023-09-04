@@ -2,12 +2,12 @@
 
 namespace BTDAdventure.Effects;
 
-internal class BurnEffect : Effect, IPostTurnEffect
+internal class BurnEffect : Effect, ITurnEffect
 {
     protected override string Name => "Burn";
     protected override string? Image => UIManager.BurnIcon;
 
-    void IPostTurnEffect.OnEffect(Entity entity)
+    void ITurnEffect.OnPostTurn(Entity entity)
     {
         entity.ReceiveDamage(null, Level);
     }

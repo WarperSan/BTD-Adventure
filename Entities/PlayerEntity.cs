@@ -1,7 +1,6 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Abstract;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using Il2CppTMPro;
@@ -79,9 +78,13 @@ public class PlayerEntity : Entity
 
     private NK_TextMeshProUGUI? ManaText;
 
-    public void AddMana(uint amount) => SetMana(Mana + amount);
-    public void RemoveMana(uint amount) => SetMana(Mana - amount);
-    public void ResetMana()
+    internal void AddMana(uint amount)
+    {
+        OnManaGain?.Invoke(ref amount);
+        SetMana(Mana + amount);
+    }
+    internal void RemoveMana(uint amount) => SetMana(Mana - amount);
+    internal void ResetMana()
     {
         uint amount = MaxMana;
 
@@ -124,9 +127,61 @@ public class PlayerEntity : Entity
     #endregion
 
     #region Effect
+    #region Card Block
+    private delegate void CardPlayEvent(ref bool blocked, HeroCard card);
+    private event CardPlayEvent OnCardPlay;
+    internal bool BlockCardOnPlay(HeroCard card)
+    {
+        bool isBlocked = false;
+        OnCardPlay?.Invoke(ref isBlocked, card);
+        return isBlocked;
+    }
+
+    private event CardPlayEvent OnCardDraw;
+    internal bool BlockCardOnDraw(HeroCard card)
+    {
+        bool isBlocked = false;
+        OnCardDraw?.Invoke(ref isBlocked, card);
+        return isBlocked;
+    }
+    #endregion
+
+    #region Mana Gain
+    private delegate void ManaGainEvent(ref uint amount);
+    private event ManaGainEvent OnManaGain;
+    #endregion
+
     protected override void SetUpEffectUI(GameObject root)
     {
         EffectHolder = root.transform.Find("GameUI/BottomGroup/Status/Scroll View/Viewport/Content")?.gameObject;
+    }
+
+    protected override void ChildrenSubscribe(Effect effect)
+    {
+        if (effect is IBlockCardEffect blockCardEffect)
+        {
+            OnCardPlay += blockCardEffect.OnPlay;
+            OnCardDraw += blockCardEffect.OnDraw;
+        }
+
+        if (effect is IManaGainEffect manaGainEffect)
+        {
+            OnManaGain += manaGainEffect.OnManaGained;
+        }
+    }
+
+    protected override void ChildrenUnsubscribe(Effect effect)
+    {
+        if (effect is IBlockCardEffect blockCardEffect)
+        {
+            OnCardPlay -= blockCardEffect.OnPlay;
+            OnCardDraw -= blockCardEffect.OnDraw;
+        }
+
+        if (effect is IManaGainEffect manaGainEffect)
+        {
+            OnManaGain -= manaGainEffect.OnManaGained;
+        }
     }
     #endregion
 

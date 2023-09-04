@@ -8,8 +8,5 @@ internal class ThornsEffect : Effect, IAttackedEffect
     protected override string? Image => UIManager.ThornsIcon;
     protected override int GetReduceAmount(Entity origin) => Level - LowestLevel;
 
-    public void OnEffect(Entity source, Entity attacker)
-    {
-        source.AttackTarget(Level, attacker);
-    }
+    public void OnPostAttacked(Entity source, Entity attacker) => source.AttackTarget(Level, attacker);
 }

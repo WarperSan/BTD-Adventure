@@ -12,11 +12,10 @@ public class WeaknessEffect : Effect, IAttackEffect
     protected override string Name => "Weakness";
     protected override string? Image => "Ui[BTDAdventure-icon_enemy_weak]";
 
-    public Damage ModifyDamage(Entity entity, Damage damage)
+    public void ModifyDamage(Entity entity, ref Damage damage)
     {
-        damage.Amount = entity is EnemyEntity ? 
-            Mathf.CeilToInt(damage.Amount * 0.7f) : 
+        damage.Amount = entity is EnemyEntity ?
+            Mathf.CeilToInt(damage.Amount * 0.7f) :
             Mathf.FloorToInt(damage.Amount * 0.5f);
-        return damage;
     }
 }

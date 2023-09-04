@@ -47,6 +47,9 @@ public abstract class EnemyAction : ModContent, System.IComparable<EnemyAction>
     public virtual void OnAction(EnemyEntity source, PlayerEntity player) { }
     public abstract string? GetText(EnemyEntity source);
 
+    //public abstract int PlayAnimation();
+
+
     /// The biggest moves before the smallest
     public int CompareTo(EnemyAction? other) => this.Order.CompareTo(other?.Order);
 

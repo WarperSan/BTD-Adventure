@@ -28,6 +28,7 @@ internal class RewardManager(UIManager? uIManager)
 
         UiManager?.UseLoading(postLoad: new Action(() =>
         {
+            UiManager?.GameUI?.SetActive(false);
             UiManager?.VictoryUI?.SetActive(false);
 
             // Generate rewards
@@ -39,6 +40,7 @@ internal class RewardManager(UIManager? uIManager)
             }
 
             UiManager?.RewardUI?.SetActive(true);
+            GameManager.Instance.Player?.RemoveAllEffects();
         }));
     }
 
@@ -82,14 +84,26 @@ internal class RewardManager(UIManager? uIManager)
             return;
 
         GameObject? r = GameObject.Instantiate(GameManager.Instance.RewardCardPrefab, UiManager?.RewardHolder);
-        r?.GetComponentInChildren<Button>().onClick.AddListener(new Function(() =>
+        r?.transform.Find("Button")?.GetComponent<Button>().onClick.AddListener(() =>
         {
             if (rewardIndex != -1)
                 return;
 
             rewardIndex = index;
             CloseRewardUI();
-        }));
+        });
+
+        var rwdBtn = r?.transform.Find("InfoBtn")?.GetComponent<Button>();
+        var isRwdBtnActive = reward.Value.HeroCard != null;
+        rwdBtn?.gameObject.SetActive(isRwdBtnActive);
+
+        if (isRwdBtnActive)
+        {
+            rwdBtn?.onClick.AddListener(() =>
+            {
+                UIManager.CreatePopupReward(reward);
+            });
+        }
 
         _rewardsObj.Add(r);
 
@@ -124,12 +138,13 @@ internal class RewardManager(UIManager? uIManager)
 
             UiManager.RewardUI?.SetActive(false);
 
-            // Start new fight
-            GameManager.Instance.StartFight();
+            // Open map
+            UiManager.MapGenerator?.ProgressLayer();
+            UiManager.MapGenerator?.MapObjectsParent?.gameObject.SetActive(true);
         }));
     }
 
-    struct Reward
+    internal struct Reward
     {
         // Rewards can be a card, bloonjamins, nothing (or cash)
         public HeroCard? HeroCard;
