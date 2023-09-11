@@ -1,6 +1,7 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Components;
+using BTDAdventure.Enemy_Actions;
 using BTDAdventure.Entities;
 using System;
 using System.Collections.Generic;
@@ -20,8 +21,6 @@ internal class GameManager
     internal void Initialize()
     {
         EffectsType = InitializeAirport<Effect>();
-
-        this.EnemyManager = new();
 
         MainBundle = ModContent.GetBundle<Main>("btdadventure");
         Log("Bundle Loaded");
@@ -112,7 +111,6 @@ internal class GameManager
 
     #region Managers
     internal UIManager? UiManager;
-    private EnemyManager? EnemyManager;
     #endregion
 
     private bool _isFirstFight;
@@ -120,7 +118,8 @@ internal class GameManager
     // Prevents infinite battles.
     // Each X turns, enemies will gain +1 base damage
     private const byte TurnsPerDifficulty = 10;
-    private byte _turnCount = 0;
+    private uint _turnCount = 0;
+    public uint TurnCount => _turnCount;
     internal int FightDifficulty = 0;
 
     internal void StartGame()
@@ -139,7 +138,7 @@ internal class GameManager
         }), BTD_Mod_Helper.Api.Enums.ScheduleType.WaitForFrames, 3);
 
         // Create UIManager
-        UiManager = new();
+        UiManager ??= new();
 
         // Remove base UI & add bundle UI
         Transform? mainUI = UiManager.SetUpMainUI();
@@ -185,11 +184,13 @@ internal class GameManager
         UiManager?.GameUI?.SetActive(false);
     }
 
-    internal void StartFight(string type, string world)
+    internal void StartFight(string type)
     {
         try
         {
-            _turnCount = 0;
+            CardCounters.Clear();
+
+            _turnCount = uint.MaxValue;
             FightDifficulty = 0;
 
             // Clear status
@@ -202,11 +203,12 @@ internal class GameManager
 
             // Get enmies group
             // Build enemies
-            PopulateEnemies(type, world);
+            PopulateEnemies(type, CurrentWorld);
 
             StartPlayerTurn();
 
             _isFirstFight = false;
+
         }
         catch (Exception e)
         {
@@ -251,6 +253,7 @@ internal class GameManager
             {
                 _drawCardList = new(_discardCardList);
                 _discardCardList.Clear();
+                SoundManager.PlaySound("shuffle", SoundManager.GeneralGroup);
             }
 
             int rdmIndex = UnityEngine.Random.Range(0, _drawCardList.Count);
@@ -280,6 +283,9 @@ internal class GameManager
 
     private void StartPlayerTurn()
     {
+        if (!Player?.IsAlive ?? false)
+            return;
+
         // Increases general difficulty
         _turnCount++;
 
@@ -315,12 +321,9 @@ internal class GameManager
         Player?.ResetMana();
 
         // Fill hand
-        FillHand(MaxPlayerCardCount, swingAnimation: _turnCount != 1);
+        FillHand(MaxPlayerCardCount, swingAnimation: !_isFirstFight);
 
         // Check pre-turn skills
-
-        // Unlock all cards
-        UiManager?.SetLockState(false);
 
         if (UiManager != null && UiManager.EndTurnBtn != null)
             UiManager.EndTurnBtn.interactable = true;
@@ -357,8 +360,10 @@ internal class GameManager
         //GameActivity.this.checkEndTurnSkill();
     }
 
-    private void EndFight()
+    private void OnVictory()
     {
+        SoundManager.PlaySound("victory", SoundManager.GeneralGroup);
+
         UiManager?.VictoryUI?.SetActive(true);
         if (UiManager != null && UiManager.VictoryBtn != null)
             UiManager.VictoryBtn.enabled = true;
@@ -371,6 +376,13 @@ internal class GameManager
 
         RewardManager rewardManager = new(UiManager);
         rewardManager.OpenRewardUI();
+    }
+
+    internal void OnDefeat()
+    {
+        SoundManager.PlaySound("defeat", SoundManager.GeneralGroup);
+
+        UiManager?.ShowDeathUI();
     }
 
     internal void Reset()
@@ -392,8 +404,18 @@ internal class GameManager
         for (int i = 0; i < _enemies.Length; i++) { _enemies[i] = null; }
     }
 
+    private World? CurrentWorld;
+    internal void SetWord(World world) => CurrentWorld = world;
+    internal World GetWorld()
+    {
+        CurrentWorld ??= new Forest();
+        return CurrentWorld;
+    }
+
     #region Player
     #region Card
+    private readonly Dictionary<string, int> CardCounters = new();
+
     internal void AddCard(HeroCard card) => _globalCardList.Add(card);
 
     private int SelectedCardIndex = -1;
@@ -407,6 +429,43 @@ internal class GameManager
 
         if (SelectedCardIndex != -1 && (bool)Main.ShowCardCursor.GetValue())
             UiManager?.SetCardCursorState(SelectedCardIndex, true);
+    }
+
+    private void PlayCard()
+    {
+        if (Player == null)
+        {
+            Log("No player instance was assigned.");
+            return;
+        }
+
+        HeroCard? card = GetCard();
+
+        // Play card
+        Player.RemoveMana(1);
+
+        if (card != null)
+        {
+            Player.PreAction(card);
+
+            if (!Player.BlockCardOnPlay(card))
+                card.PlayCard();
+
+            Player.PostAction(card);
+        }
+
+        FillHand(1, SelectedCardIndex, true);
+
+        SelectCard(-1);
+        SelectedEnemyIndex = -1;
+    }
+
+    internal int GetCounter(string name) => CardCounters.ContainsKey(name) ? CardCounters[name] : 0;
+    internal int AddCounter(string name, int value)
+    {
+        int v = GetCounter(name) + value;
+        CardCounters[name] = v;
+        return v;
     }
     #endregion
 
@@ -443,7 +502,8 @@ internal class GameManager
 
         foreach (var item in _enemies)
         {
-            if (item == null)
+            // If the item is null or the player is dead
+            if (item == null || Player?.IsAlive == false)
                 continue;
 
             yield return new WaitForSeconds(value);
@@ -470,7 +530,12 @@ internal class GameManager
             }
         }
 
-        foreach (var item in _enemies) item?.PostTurn();
+        // If player is alive
+        if (Player?.IsAlive ?? false)
+        {
+            // Execute enemies' post turn
+            foreach (var item in _enemies) item?.PostTurn();
+        }
 
         StartPlayerTurn();
     }
@@ -487,36 +552,13 @@ internal class GameManager
     {
         SelectedEnemyIndex = index;
 
+#if DEBUG
         Log("The current enemy selected is: " + SelectedEnemyIndex);
+#endif
 
-        if (GetCard() == null || Player?.Mana == 0)
+        if (GetCard() == null || Player?.Mana == 0 || Player?.IsAlive == false)
             return;
-
-        if (Player == null)
-        {
-            Log("No player instance was assigned.");
-            return;
-        }
-
-        HeroCard? card = GetCard();
-
-        // Play card
-        Player.RemoveMana(1);
-
-        if (card != null)
-        {
-            Player.PreAction(card);
-
-            if (!Player.BlockCardOnPlay(card))
-                card.PlayCard();
-
-            Player.PostAction(card);
-        }
-
-        FillHand(1, SelectedCardIndex, true);
-
-        SelectCard(-1);
-        SelectedEnemyIndex = -1;
+        PlayCard();
     }
 
     /// <summary>
@@ -524,7 +566,7 @@ internal class GameManager
     /// </summary>
     /// <param name="enemyType"></param>
     /// <returns>Has the enemy been added properly ?</returns>
-    internal bool AddEnemy(Type enemyType)
+    internal bool AddEnemy(EnemyCard enemyCard, bool initIntent)
     {
         // Possible changes:
         // - Check here if the type is valid, instead of assuming it has been validated before
@@ -552,7 +594,10 @@ internal class GameManager
             return false;
         }
 
-        _enemies[position] = UiManager?.AddEnemy(enemyType, position);
+        _enemies[position] = UiManager?.AddEnemy(enemyCard, position);
+
+        if (initIntent)
+            _enemies[position]?.SetIntent(new WaitAction());
         return _enemies[position] != null;
     }
 
@@ -578,24 +623,8 @@ internal class GameManager
         // OnDeathAbility
 
         if (GetEnemyCount() == 0)
-        {
-            EndFight();
-        }
+            OnVictory();
         return true;
-    }
-
-    /// <summary>
-    /// Fetches the <see cref="EnemyAction"/> which have the tag <paramref name="intent"/>
-    /// </summary>
-    /// <returns>The <see cref="EnemyAction"/> or null if not found</returns>
-    internal static EnemyAction? GetIntentAction(string? intent)
-    {
-        if (string.IsNullOrEmpty(intent)) return null;
-        var validActions = ModContent.GetContent<EnemyAction>().FindAll(x => x.Tag == intent);
-
-        validActions.Sort();
-
-        return validActions.Count > 0 ? validActions[0] : null;
     }
 
     #region Attack
@@ -675,27 +704,29 @@ internal class GameManager
     /// </summary>
     /// <param name="encounterType">Type of the encounter (Normal, Elite, Boss)</param>
     /// <param name="world">Name of the current world</param>
-    private void PopulateEnemies(string encounterType, string world)
+    private void PopulateEnemies(string encounterType, World? world)
     {
-        if (this.EnemyManager == null)
+        if (world == null)
         {
-            Log("Enemy Manager was not defined.");
+            Log("No world was defined.");
             return;
         }
 
-        Type?[] enemies = this.EnemyManager.GenerateEnemies(encounterType, world);
+        CurrentWorld ??= new Forest();
 
-        for (int i = 0; i < enemies.Length; i++)
+        EnemyCard[] enemies = world.GetEnemies(encounterType);
+
+        for (int i = 0; i < MaxEnemiesCount; i++)
         {
-            Type? item = enemies[i];
+            EnemyCard? enemy = enemies.Length > i ? enemies[i] : null;
 
-            if (item == null)
+            if (enemy == null)
             {
                 UiManager?.SetEnemyState(false, i);
                 continue;
             }
 
-            AddEnemy(item);
+            AddEnemy(enemy, false);
         }
     }
     #endregion
@@ -734,14 +765,14 @@ internal class GameManager
             T c = asset.Cast<T>();
 
 #if DEBUG
-            Log($"Loaded asset \'{name}\'.");
+            Log($"Loaded asset \'{name}\' ({typeof(T).Name}).");
 #endif
             return c;
         }
         catch (Exception e)
         {
             Log(e.Message);
-            throw;
+            return default;
         }
     }
     #endregion

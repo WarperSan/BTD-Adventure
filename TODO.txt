@@ -1,9 +1,16 @@
 List of things to do
 
 Very important:
+- Clean classes (moving tasks to new managers)
+- Change enemy intent system to a method (give context to the card)
 - Fix animation glitch
-- Add death
 - Fix when the effects get depete
+- Add final boss
+- Add starting node (give cards)
+- Add menu before starting a game (to set seed)
+- Add screen vibrations on death
+- Add sounds
+- Make the random offset system more complexe
 
 Fairly important:
 - Rogue Class effects
@@ -56,6 +63,10 @@ Complete:
 - Add pop up for cards' description
 - Add color changing number depending on increase/decrease
 - Add posibility to restart by quiting
+- Add death
+- Add random offset to the map nodes
+- Add World class
+- Add more than 5 lanes
 
 - Remove blur if game is load not from me
 - Remove track arrows
@@ -77,6 +88,7 @@ Complete:
 - Fix thorns (dont get clear on round end)
 - Fix enemy HP bar
 - Fix color damage alteration
+- Fix Prefab multiplication
 
 - Replace end turn btn display
 - Disable end turn btn when enemy turn

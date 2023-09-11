@@ -30,6 +30,8 @@ public class PlayerEntity : Entity
         HealthImg.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LivesIcon);
         HealthText = InitializeText(health.transform.Find("Text"), TopValueFontSize);
     }
+
+    protected override void OnDeath() => GameManager.Instance.OnDefeat();
     #endregion
 
     #region Shield

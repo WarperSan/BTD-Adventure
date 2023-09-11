@@ -5,7 +5,7 @@ namespace BTDAdventure.Enemy_Actions;
 
 internal class DoubleAttackAction : IntentAttackAction
 {
-    public DoubleAttackAction() : base(DoubleAttack, DoubleDamageIcon) { }
+    public DoubleAttackAction() : base(DoubleDamageIcon) { }
 
     public override string? GetText(EnemyEntity source) => (source.GetAttack() * 2).ToString();
     public override void OnAction(EnemyEntity source, PlayerEntity player)

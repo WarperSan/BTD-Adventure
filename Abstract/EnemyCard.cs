@@ -1,4 +1,5 @@
 ﻿using BTD_Mod_Helper.Api;
+using BTDAdventure.Entities;
 using UnityEngine;
 
 namespace BTDAdventure.Cards.EnemyCards;
@@ -9,11 +10,6 @@ public abstract class EnemyCard : ModContent
     /// Defines the GUID of the image used for the portrait.
     /// </summary>
     public abstract string? Portrait { get; }
-
-    /// <summary>
-    /// Defines the actions that the enemy will execute.
-    /// </summary>
-    public abstract string[]? Intents { get; }
 
     #region Stats
     /// <summary>
@@ -41,8 +37,7 @@ public abstract class EnemyCard : ModContent
 
     public virtual string? GetBackgroundGUID() => null;
 
-    public abstract string? World { get; }
-    public abstract uint RiskValue { get; }
+    public abstract EnemyAction GetNextAction(uint roundCount, EnemyEntity source);
 
     public override void Register()
     {

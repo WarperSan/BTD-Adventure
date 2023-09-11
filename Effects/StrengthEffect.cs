@@ -1,7 +1,4 @@
-﻿using BTDAdventure.Abstract;
-using System;
-
-namespace BTDAdventure.Effects;
+﻿namespace BTDAdventure.Effects;
 
 /// <summary>
 /// Each point of Strength increases the damage by 1.
@@ -9,7 +6,7 @@ namespace BTDAdventure.Effects;
 public class StrengthEffect : Effect, IAttackEffect
 {
     protected override string Name => "Strength";
-    protected override string? Image => throw new NotImplementedException();
+    protected override string? Image => "Ui[BTDAdventure-icon_strength]";
 
     public void ModifyDamage(Entity entity, ref Damage damage)
     {

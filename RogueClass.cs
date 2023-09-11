@@ -1,4 +1,6 @@
 ﻿using BTD_Mod_Helper.Api;
+using BTDAdventure.Cards.Enemies;
+using BTDAdventure.Cards.Heroes;
 using BTDAdventure.Entities;
 using System.Collections.Generic;
 

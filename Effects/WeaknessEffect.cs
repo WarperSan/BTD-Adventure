@@ -1,6 +1,4 @@
-﻿using BTDAdventure.Abstract;
-using BTDAdventure.Entities;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace BTDAdventure.Effects;
 
@@ -14,8 +12,11 @@ public class WeaknessEffect : Effect, IAttackEffect
 
     public void ModifyDamage(Entity entity, ref Damage damage)
     {
-        damage.Amount = entity is EnemyEntity ?
-            Mathf.CeilToInt(damage.Amount * 0.7f) :
-            Mathf.FloorToInt(damage.Amount * 0.5f);
+        if (Level == 0)
+            return;
+
+        float percentage = 1 - Mathf.Pow(Level, 0.9f) / 100;
+
+        damage.Amount = Mathf.FloorToInt(damage.Amount * percentage);
     }
 }

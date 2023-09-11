@@ -26,11 +26,13 @@
       <None Remove="Images\Effects\icon_overcharged.png" />
       <None Remove="Images\Effects\icon_permashield.png" />
       <None Remove="Images\Effects\icon_poison.png" />
+      <None Remove="Images\Effects\icon_strength.png" />
       <None Remove="Images\Effects\icon_wound.png" />
       <None Remove="Images\Effects\innate_wounded_hit.png" />
       <None Remove="Images\Icons\btdadventure.bundle" />
       <None Remove="Images\Icons\intent_damage.png" />
       <None Remove="Images\Icons\intent_damage_double.png" />
+      <None Remove="Images\Icons\intent_evoke.png" />
       <None Remove="Images\Icons\intent_negate.png" />
       <None Remove="Images\Icons\intent_pause.png" />
       <None Remove="Images\Icons\intent_shield-1.png" />
@@ -63,7 +65,6 @@
 
     <ItemGroup>
       <Folder Include="Bundles\" />
-      <Folder Include="Cards\Heroes\" />
       <Folder Include="Resources\" />
     </ItemGroup>
 </Project>

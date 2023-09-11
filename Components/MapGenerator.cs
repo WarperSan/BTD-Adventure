@@ -1,18 +1,28 @@
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure;
 using BTDAdventure.Managers;
 using System.Collections.Generic;
+using System.Drawing;
 using UnityEngine;
 using UnityEngine.UI;
 
+namespace BTDAdventure.Components;
+
 public class MapGenerator : MonoBehaviour
 {
+    #region Constants
+    public const string NormalNode = "normal";
+    public const string EliteNode = "elite";
+    public const string BossNode = "boss";
+    public const string MerchantNode = "merchant";
+    public const string TreasureNode = "treasure";
+    #endregion
+
     private GameObject? nodePrefab;
     private GameObject? LinePrefab;
     internal RectTransform? MapObjectsParent;
 
-    private Vector2 Size;
+    private World? CurrentWorld;
 
     private List<Vector2>? nodes;
     private List<Path>? paths;
@@ -32,12 +42,26 @@ public class MapGenerator : MonoBehaviour
         this.MapObjectsParent = MapObjectsParent;
     }
 
-    internal void GenerateMap(Vector2 size, int seed, int trailAmount)
+    internal void GenerateMap(int seed)
     {
+        CurrentWorld = GameManager.Instance.GetWorld();
+        CurrentWorld.ResetCounters();
+
+        var size = new Point(CurrentWorld.Size.x, CurrentWorld.Size.y);
+
+        if (size.X <= 0)
+            size.X = 5;
+
+        if (size.Y <= 0)
+            size.Y = 15;
+
+        var trailAmount = CurrentWorld.TrailsCount;
+
+        if (trailAmount == 0)
+            trailAmount = 6;
+
         Random.State state = Random.state;
         Random.InitState(seed);
-
-        Size = size;
 
         if (MapObjectsParent == null)
         {
@@ -57,10 +81,10 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        MapNodes = new MapNode[Mathf.FloorToInt(Size.y), Mathf.FloorToInt(Size.x)];
-        MapObjectsParent.sizeDelta = new Vector2(Size.y * 300, Size.x * 300);
+        MapNodes = new MapNode[size.Y + 1, size.X];
+        MapObjectsParent.sizeDelta = new Vector2(size.Y, size.X * 4 / 3) * 300;
 
-        GeneratePaths(trailAmount);
+        GeneratePaths(trailAmount, size);
 
         if (nodes == null)
         {
@@ -74,106 +98,43 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            var item = nodes[i];
-
-            var newNode = GameObject.Instantiate(nodePrefab, Vector3.zero, Quaternion.identity, MapObjectsParent);
-            var position = new Vector3(item.y - Size.y / 2, item.x - Size.x / 2) * 300 - new Vector3(0, 100);
-
-            //var rdmAngle = Random.Range(0, 360);
-            //position += new Vector3(Mathf.Cos(rdmAngle), Mathf.Sin(rdmAngle)) * Random.Range(0, 50);
-
-            newNode.GetComponent<RectTransform>().localPosition = position;
-            
-            var mapNode = newNode.GetComponent<MapNode>();
-            mapNode.NodeType = "normal";
-            mapNode.index = i;
-
-            Texture? texture = GetTexture(mapNode.NodeType);
-
-            if (texture != null)
-                mapNode.SetSprite(texture);
-            else
-                Log($"No texture was found for the Node type \'{mapNode.NodeType}\'");
-
-            newNode.GetComponent<Button>().interactable = false;
-
-            MapNodes[Mathf.FloorToInt(item.y), Mathf.FloorToInt(item.x)] = mapNode;
-            nodes[i] = mapNode.transform.position;
-        }
+        CreateNodes(size);
 
         Random.state = state;
 
-        var linesParent = MapObjectsParent.Find("Lines");
-
-        foreach (var path in paths)
-        {
-            var origin = GetNodePosition(path.OriginIndex);
-            var destination = GetNodePosition(path.DestinationIndex);
-
-            if (!origin.HasValue || !destination.HasValue)
-                continue;
-
-            //var mapNode = MapNodes[Mathf.FloorToInt(origin.Value.y), Mathf.FloorToInt(origin.Value.x)];
-            var mapObject = GameObject.Instantiate(LinePrefab,
-                origin.Value,
-                Quaternion.identity,
-                linesParent);
-
-            Vector2 diff = origin.Value - destination.Value;
-
-            float magnitude = Mathf.Sqrt(Mathf.Pow(diff.x, 2) + Mathf.Pow(diff.y, 2));
-
-            float dirX = Mathf.Acos(diff.x / magnitude) * 180 / Mathf.PI;
-            float diY = Mathf.Asin(diff.y / magnitude) * 180 / Mathf.PI;
-
-            float angle;
-
-            if (diff.y > 0 && diff.x < 0) // # 4
-                angle = diY;
-            else if (diff.y < 0 && diff.x < 0) // # 1
-                angle = dirX;
-            else if (diff.y > 0 && diff.x > 0) // # 3
-                angle = 360 - dirX;
-            else // # 2
-                angle = dirX;
-
-            angle -= 90;
-
-            if (angle == 90)
-            {
-                angle -= 90;
-            }
-            else
-            {
-                mapObject.GetComponent<RectTransform>().sizeDelta = new Vector3(420, 10);
-            }
-
-            mapObject.transform.eulerAngles = new Vector3(0, 0, angle);
-
-            //if (zRotation != 0)
-            //    mapObject.transform.localScale = new Vector3(1 / Mathf.Abs(Mathf.Sin(zRotation)), 1);
-        }
+        // Create lines
+        CreateLines();
     }
 
     /// <summary>
     /// Generates a list of Path that leads from the start to the end
     /// </summary>
-    private void GeneratePaths(int trailCount)
+    private void GeneratePaths(uint trailCount, Point size)
     {
         paths = new List<Path>();
         nodes = new List<Vector2>();
 
+        var endBossNode = GetNodeIndex(Mathf.RoundToInt(size.X / 2), size.Y);
+
         // Create X trails
-        for (int i = 0; i < trailCount; i++)
+        for (uint i = 0; i < trailCount; ++i)
         {
             // Get a random starting X position
-            int xPosition = Random.Range(0, Mathf.FloorToInt(Size.x));
+            int xPosition = Random.Range(0, Mathf.FloorToInt(size.X));
 
             // For each layer
-            for (int y = 0; y < Size.y - 1; y++)
+            for (int y = 0; y < size.Y; ++y)
             {
+                if (y == size.Y - 1)
+                {
+                    paths.Add(new Path()
+                    {
+                        OriginIndex = GetNodeIndex(xPosition, y),
+                        DestinationIndex = endBossNode,
+                    });
+                    continue;
+                }
+
                 var modf = new List<int>() { -1, 0, 1 };
 
                 // Remove paths that would cross other paths
@@ -207,7 +168,7 @@ public class MapGenerator : MonoBehaviour
                 int ogIndex = GetNodeIndex(xPosition, y);
 
                 // Move the cursor to the next position while keeping it in bounds
-                xPosition = Mathf.Clamp(xPosition + modf[Random.Range(0, modf.Count)], 0, Mathf.FloorToInt(Size.x) - 1);
+                xPosition = Mathf.Clamp(xPosition + modf[Random.Range(0, modf.Count)], 0, Mathf.FloorToInt(size.X) - 1);
 
                 // Get the node index of the destination node
                 int destIndex = GetNodeIndex(xPosition, y + 1);
@@ -225,7 +186,86 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    private int GetNodeIndex(int x, int y)
+    private void CreateNodes(Point size)
+    {
+        if (nodes == null || nodePrefab == null || MapNodes == null || CurrentWorld == null)
+            return;
+
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            var item = nodes[i];
+
+            var newNode = GameObject.Instantiate(nodePrefab, Vector3.zero, Quaternion.identity, MapObjectsParent);
+
+            var rdmAngle = Random.Range(0, 360);
+            var position = new Vector3(item.y - size.Y / 2, item.x - size.X / 2) * 300 + new Vector3(Mathf.Cos(rdmAngle), Mathf.Sin(rdmAngle)) * 50;
+
+            newNode.GetComponent<RectTransform>().localPosition = position;
+
+            var mapNode = newNode.GetComponent<MapNode>();
+            mapNode.NodeType = i == 0 ? "boss" : CurrentWorld.GetNodeType(Mathf.FloorToInt(item.y), Mathf.FloorToInt(item.x));
+            mapNode.index = i;
+
+            Texture? texture = GetTexture(mapNode.NodeType);
+
+            if (texture != null)
+                mapNode.SetSprite(texture);
+            else
+                Log($"No texture was found for the Node type \'{mapNode.NodeType}\'");
+
+            newNode.GetComponent<Button>().interactable = false;
+
+            if (i == 0)
+            {
+                MapNodes[size.Y, 0] = mapNode;
+            }
+            else
+            {
+                MapNodes[Mathf.FloorToInt(item.y), Mathf.FloorToInt(item.x)] = mapNode;
+            }
+            nodes[i] = position;
+        }
+    }
+
+    /// <summary>
+    /// Instantiates the lines on the map
+    /// </summary>
+    private void CreateLines()
+    {
+        if (MapObjectsParent == null || paths == null || LinePrefab == null)
+            return;
+
+        var linesParent = MapObjectsParent.Find("Lines");
+
+        foreach (var path in paths)
+        {
+            var origin = GetNodePosition(path.OriginIndex);
+            var destination = GetNodePosition(path.DestinationIndex);
+
+            if (!origin.HasValue || !destination.HasValue)
+                continue;
+
+            var mapObject = GameObject.Instantiate(LinePrefab,
+                Vector3.zero,
+                Quaternion.identity,
+                linesParent);
+
+            mapObject.GetComponent<RectTransform>().localPosition = origin.Value;
+
+            Vector2 diff = origin.Value - destination.Value;
+
+            float magnitude = Mathf.Sqrt(Mathf.Pow(diff.x, 2) + Mathf.Pow(diff.y, 2));
+            mapObject.GetComponent<RectTransform>().sizeDelta = new Vector3(magnitude, 10);
+
+            var rotation = Quaternion.LookRotation(diff, Vector3.up).eulerAngles;
+            var zRotation = Mathf.Sign(rotation.y - 180) == -1 ? 180 - rotation.x : rotation.x;
+
+            mapObject.transform.rotation = Quaternion.Euler(0, 0, zRotation);
+        }
+    }
+
+    #region Node related
+    private int GetNodeIndex(float x, float y)
     {
         int index = GetNode(x, y);
 
@@ -236,7 +276,7 @@ public class MapGenerator : MonoBehaviour
         return nodes == null ? -1 : nodes.Count - 1;
     }
 
-    private int GetNode(int x, int y)
+    private int GetNode(float x, float y)
     {
         for (int i = 0; i < nodes?.Count; i++)
         {
@@ -249,28 +289,26 @@ public class MapGenerator : MonoBehaviour
     }
 
     private Vector2? GetNodePosition(int index) => nodes?.Count <= index ? null : nodes?[index];
+    #endregion
 
-    private Texture? GetTexture(string type)
+    private Texture? GetTexture(string type) => type switch
     {
-        return type switch
-        {
-            "normal" => ModContent.GetTexture<Main>("map_normal_old"),
-            "elite" => ModContent.GetTexture<Main>("map_elite_old"),
-            "boss" => ModContent.GetTexture<Main>("map_boss_old"),
-            "merchant" => ModContent.GetTexture<Main>("map_merchant_old"),
-            "treasure" => ModContent.GetTexture<Main>("map_treasure_old"),
-            _ => null,
-        };
-    }
+        NormalNode => ModContent.GetTexture<Main>("map_normal_old"),
+        EliteNode => ModContent.GetTexture<Main>("map_elite_old"),
+        BossNode => ModContent.GetTexture<Main>("map_boss_old"),
+        MerchantNode => ModContent.GetTexture<Main>("map_merchant_old"),
+        TreasureNode => ModContent.GetTexture<Main>("map_treasure_old"),
+        _ => CurrentWorld?.GetMapIcon(type), // If icon not found, ask world to give icon
+    };
 
-
+    #region Map Behavior
     int layer = -1;
     int prevNodeIndex = 0;
     private void UnlockLayer(int layer)
     {
         if (paths == null)
         {
-            Log("\'{paths}\' was not defined");
+            Log($"\'{paths}\' was not defined");
             return;
         }
 
@@ -298,16 +336,23 @@ public class MapGenerator : MonoBehaviour
             btn.interactable = true;
             btn.onClick.AddListener(new Function(() =>
             {
-                GameManager.Instance.UiManager?.UseLoading(postLoad: new System.Action(() =>
-                {
-                    prevNodeIndex = mapNode.index;
+                GameManager.Instance.UiManager?.UseLoading(
+                    preLoad: new System.Action(() =>
+                    {
+                        SoundManager.PlaySound("laugh", SoundManager.GeneralGroup);
+                    }),
 
-                    // Start new fight
-                    GameManager.Instance.UiManager?.GameUI?.SetActive(true);
-                    GameManager.Instance.StartFight(mapNode.NodeType, "forest");
+                    postLoad: new System.Action(() =>
+                    {
+                        prevNodeIndex = mapNode.index;
 
-                    MapObjectsParent?.gameObject.SetActive(false);
-                }));
+                        // Start new fight
+                        GameManager.Instance.UiManager?.GameUI?.SetActive(true);
+                        GameManager.Instance.StartFight(mapNode.NodeType);
+
+                        MapObjectsParent?.gameObject.SetActive(false);
+
+                    }));
             }));
         }
     }
@@ -348,5 +393,15 @@ public class MapGenerator : MonoBehaviour
             Log("Thank you for playing ! This is the end of the game so far :)");
             // Next World
         }
+    }
+    #endregion
+
+    void OnDestroy()
+    {
+        if (nodePrefab != null)
+            GameObject.Destroy(nodePrefab);
+
+        if (LinePrefab != null)
+            GameObject.Destroy(LinePrefab);
     }
 }

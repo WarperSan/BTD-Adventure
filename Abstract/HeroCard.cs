@@ -63,12 +63,11 @@ public abstract class HeroCard : ModContent
         return $"<color={GetDamageColor(realAmount - amount)}>" + realAmount + "</color>";
     }
 
-    protected string GetDamageColor(int difference)
+    protected virtual string GetDamageColor(int difference)
     {
         // If not override, + => green; - => red
         Color color = difference > 0 ? (GetPlusAttackColor(difference) ?? Color.FromArgb(0xFF, 0x00, 0xFF, 0x00)) :
             (GetMinusAttackColor(difference) ?? Color.FromArgb(0xFF, 0xA5, 0x2A, 0x2A));
-        Log(color);
         return "#" + color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2") + color.A.ToString("X2");
     }
 
@@ -87,11 +86,16 @@ public abstract class HeroCard : ModContent
     #endregion
 
     #region Shield
-    protected static void AddShield(int amount) => GameManager.Instance.Player?.AddShield(amount);
+    protected static void AddShield(int amount) => GameManager.Instance.Player?.AddShield(amount, null);
     #endregion
 
     #region Frame
 
+    #endregion
+
+    #region Counter
+    protected static int GetCounter(string name) => GameManager.Instance.GetCounter(name);
+    protected static int AddCounter(string name, int value) => GameManager.Instance.AddCounter(name, value);
     #endregion
 
     public override void Register()
@@ -114,7 +118,7 @@ public class DartMonkey000 : HeroCard
     internal override void PlayCard()
     {
         AttackEnemy(6);
-        AddLevelEnemy<PoisonEffect>(5);
+        AddLevelEnemy<WeaknessEffect>(5);
         //AttackAllEnemies(50);
     }
 }

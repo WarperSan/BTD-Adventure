@@ -3,60 +3,24 @@ using BTDAdventure.Entities;
 
 namespace BTDAdventure.Abstract;
 
-public abstract class EnemyAction : ModContent, System.IComparable<EnemyAction>
+public abstract class EnemyAction : ModContent
 {
-    #region Constants
-    public const string PlaceHolder = "placeholder";
-
-    public const string Wait = "wait";
-
-    public const string Attack = "attack";
-    public const string DoubleAttack = "doubleattack";
-
-    public const string Shield = "shield";
-    public const string ShieldAll = "shieldall";
-
-    public const string Weakness = "weakness";
-
-    /*
-    h = HEAL
-    ha = HEAL ALL
-    e = EVOKE
-    cc = CURSE
-    bd = BLIND
-    bk = BLOCK
-    sl = SILENCE
-    wa = FRAIL
-    wd = WOUND
-    ws = Weakness
-    */
-    #endregion
-
     public string? Icon { get; }
-    public string Tag { get; }
-
     public string? AnimationName { get; }
 
-    public EnemyAction(string tag, string? animationName, string? icon = null)
+    public EnemyAction(string? animationName, string? icon = null)
     {
-        this.Tag = tag;
         this.Icon = icon;
         this.AnimationName = animationName;
     }
 
-    public virtual void OnAction(EnemyEntity source, PlayerEntity player) { }
+    public abstract void OnAction(EnemyEntity source, PlayerEntity player);
     public abstract string? GetText(EnemyEntity source);
-
-    //public abstract int PlayAnimation();
-
-
-    /// The biggest moves before the smallest
-    public int CompareTo(EnemyAction? other) => this.Order.CompareTo(other?.Order);
 
     public override void Register()
     {
 #if DEBUG
-        Log($"{Name} registered with tag \'{Tag}\'.");
+        Log($"{Name} registered");
 #endif
     }
 }

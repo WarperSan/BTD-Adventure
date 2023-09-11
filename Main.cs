@@ -13,14 +13,14 @@ using BTDAdventure;
 using BTDAdventure.Components;
 using BTDAdventure.Managers;
 using Il2Cpp;
-using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-[assembly: MelonLoader.MelonInfo(typeof(BTDAdventure.Main), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
+[assembly: MelonLoader.MelonInfo(typeof(Main), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonLoader.MelonGame("Ninja Kiwi", "BloonsTD6")]
 
 namespace BTDAdventure;
@@ -28,9 +28,6 @@ namespace BTDAdventure;
 public class Main : BloonsTD6Mod
 {
     internal static Material? blurMat = null;
-
-
-
     public static ModSettingHotkey ShowDescription = new(KeyCode.R);
 
     public override void OnApplicationStart()
@@ -63,7 +60,6 @@ public class Main : BloonsTD6Mod
                 UIManager.CreatePopupCard(c);
         }
     }
-
 
     private bool _wasFromMe = false;
 
@@ -152,9 +148,9 @@ public class Main : BloonsTD6Mod
             // Load game
             // https://github.com/Void-n-Null/QuickGame/blob/main/QuickGame.cs W
             InGameData.Editable.selectedMap = "MiddleOfTheRoad"; // Map type
-
+            InGameData.Editable.selectedMode = "Easy"; // Removes the popup
+            
             // Does not matter
-            InGameData.Editable.selectedMode = "Easy";
             InGameData.Editable.selectedDifficulty = "Easy";
             // ---
 

@@ -1,13 +1,13 @@
-﻿using BTD_Mod_Helper.Api;
+﻿using BTD_Mod_Helper;
+using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
+using BTDAdventure.Components;
 using BTDAdventure.Entities;
 using Il2Cpp;
-using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
-using Il2CppAssets.Scripts.Utils;
 using Il2CppNinjaKiwi.Common;
 using Il2CppTMPro;
 using System;
@@ -25,6 +25,7 @@ internal class UIManager
     public const string CurseIcon = "Ui[BTDAdventure-intent_negate]";
     public const string WaitIcon = "Ui[BTDAdventure-intent_pause]";
     public const string ShieldIcon = "Ui[BTDAdventure-intent_shield-1]";
+    public const string SpawnIcon = "Ui[BTDAdventure-intent_evoke]";
 
     public const string WoundIcon = "Ui[BTDAdventure-icon_wound]";
     public const string WoundExtremeIcon = "Ui[BTDAdventure-innate_wounded_hit]";
@@ -68,6 +69,7 @@ internal class UIManager
         SetUpVictoryUI(mainUI);
         SetUpRewardUI(mainUI);
         SetUpMapUI(mainUI);
+        SetUpDeathUI(mainUI);
 
         // Game UI
         GameUI = mainUI.Find("GameUI").gameObject;
@@ -88,7 +90,7 @@ internal class UIManager
         // ---
 
         // Enemies
-        EnemyCardPrefab = InitializeEnemyPrefab();
+        EnemyCardPrefab ??= InitializeEnemyPrefab();
 
         // Create enemies objects
         for (int i = 0; i < EnemiesObject.Length; i++)
@@ -100,6 +102,31 @@ internal class UIManager
         mainUI.Find("Overlay/TopPanel/Settings").GetComponent<Image>().SetSprite(VanillaSprites.SettingsBtn);
 
         return mainUI;
+    }
+
+    internal static NK_TextMeshProUGUI? InitializeText(
+        Transform @object,
+        float fontSize,
+        TextAlignmentOptions? textAlignment = null,
+        TMP_FontAsset? font = null,
+        string? initialText = null,
+        [System.Runtime.CompilerServices.CallerMemberName] string source = "")
+    {
+        NK_TextMeshProUGUI text = @object.gameObject.AddComponent<NK_TextMeshProUGUI>();
+
+        // Often because a Text component already exists
+        if (text == null)
+        {
+            Log($"Could not add the component NK_TextMeshProUGUI to the gameobject \'{@object.name}\'", source);
+            return null;
+        }
+
+        text.fontSize = fontSize;
+        text.font = font ?? Fonts.Btd6FontTitle;
+        text.alignment = textAlignment ?? TextAlignmentOptions.Center;
+        text.UpdateText(initialText);
+
+        return text;
     }
 
     #region GameUI
@@ -175,34 +202,9 @@ internal class UIManager
             return;
 
         if (reward.Value.HeroCard != null)
-            CreatePopupCard(reward.Value.HeroCard);
+            CreatePopupCard(reward.Value.HeroCard, true);
     }
     #endregion
-
-    internal static NK_TextMeshProUGUI? InitializeText(
-        Transform @object,
-        float fontSize,
-        TextAlignmentOptions? textAlignment = null,
-        TMP_FontAsset? font = null,
-        string? initialText = null,
-        [System.Runtime.CompilerServices.CallerMemberName] string source = "")
-    {
-        NK_TextMeshProUGUI text = @object.gameObject.AddComponent<NK_TextMeshProUGUI>();
-
-        // Often because a Text component already exists
-        if (text == null)
-        {
-            Log($"Could not add the component NK_TextMeshProUGUI to the gameobject \'{@object.name}\'", source);
-            return null;
-        }
-
-        text.fontSize = fontSize;
-        text.font = font ?? Fonts.Btd6FontTitle;
-        text.alignment = textAlignment ?? TextAlignmentOptions.Center;
-        text.UpdateText(initialText);
-
-        return text;
-    }
 
     #region Player Cards
     internal void InitPlayerCards()
@@ -289,9 +291,9 @@ internal class UIManager
         root.transform.Find("BlockFrame").gameObject.SetActive(isBlocked);
     }
 
-    internal static void CreatePopupCard(HeroCard card)
+    internal static void CreatePopupCard(HeroCard card, bool useRewardDescription = false)
     {
-        PopupScreen.instance.SafelyQueue(screen => screen.ShowOkPopup(card.RewardDescription));
+        PopupScreen.instance.SafelyQueue(screen => screen.ShowOkPopup(useRewardDescription ? card.RewardDescription : card.Description));
     }
 
     internal void SetCardCursorState(int index, bool state)
@@ -305,7 +307,7 @@ internal class UIManager
 
     private readonly GameObject?[] EnemiesObject = new GameObject?[MaxEnemiesCount];
 
-    internal EnemyEntity? AddEnemy(Type t, int position)
+    internal EnemyEntity? AddEnemy(EnemyCard enemyCard, int position)
     {
         if (EnemyCardsHolder == null)
         {
@@ -327,7 +329,7 @@ internal class UIManager
             enemyObject.SetActive(true);
             //SetEnemyState(true, position);
 
-            return new EnemyEntity(enemyObject, position, t);
+            return new EnemyEntity(enemyObject, position, enemyCard);
         }
         catch (Exception e)
         {
@@ -361,9 +363,45 @@ internal class UIManager
         MapGenerator = mainUI.Find("MapGenerator").gameObject.AddComponent<MapGenerator>();
 
         MapGenerator.SetUp(MapGenerator.transform.Find("Scroll View/Viewport/Content/MapObjects")?.GetComponent<RectTransform>());
-        MapGenerator.GenerateMap(new Vector2(5, 15), UnityEngine.Random.Range(0, 100), 4);
+
+        GameManager.Instance.SetWord(new Forest());
+        MapGenerator.GenerateMap(UnityEngine.Random.Range(0, 100));
         MapGenerator.ProgressLayer();
     }
+    #endregion
+
+    #region Death
+    private GameObject? DeathUI;
+    private void SetUpDeathUI(Transform mainUI)
+    {
+        DeathUI = mainUI.Find("DeathUI")?.gameObject;
+
+        if (DeathUI == null)
+            return;
+
+        DeathUI.transform.Find("DeathBloon1/Render").GetComponent<Image>().SetSprite(VanillaSprites.UnpoppedArmyZombiePhoenix);
+        DeathUI.transform.Find("DeathBloon2/Render").GetComponent<Image>().SetSprite(VanillaSprites.UnpoppedArmyZombie);
+        DeathUI.transform.Find("Panel/MoreInfo").GetComponent<Image>().SetSprite(VanillaSprites.InfoBtn2);
+
+        var goBackBtn = DeathUI.transform.Find("Panel/GoBackBtn");
+        goBackBtn.GetComponent<Image>().SetSprite(VanillaSprites.BlueBtnLong);
+        goBackBtn.GetComponent<Button>().onClick.AddListener(() =>
+        {
+            InGame.instance.QuitToMainMenu();
+        });
+
+        InitializeText(goBackBtn.Find("Render"), 90, TextAlignmentOptions.Center, initialText: "Back to Home");
+        
+        var titleText = InitializeText(DeathUI.transform.Find("Panel/Title"), 160, TextAlignmentOptions.Center, initialText: "You died !");
+
+        if (titleText != null)
+        {
+            titleText.color = Color.red;
+            titleText.outlineColor = new Color32(255, 0, 255, 33);
+        }
+    }
+
+    internal void ShowDeathUI() => DeathUI?.SetActive(true);
     #endregion
 
     #region Static

@@ -1,6 +1,6 @@
 ﻿
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Enemy_Actions;
+using BTDAdventure.Abstract.EnemyActions;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using System;
@@ -11,15 +11,11 @@ namespace BTDAdventure.Entities;
 
 public class EnemyEntity : Entity
 {
-    //private readonly GameObject? uiObject;
+    private readonly EnemyCard Model;
 
-    private readonly EnemyCard? Model;
-
-    public EnemyEntity(GameObject? enemyObject, int position, Type model) : base(enemyObject)
+    public EnemyEntity(GameObject? enemyObject, int position, EnemyCard model) : base(enemyObject)
     {
-        //uiObject = enemyObject;
-
-        Model = (EnemyCard?)Activator.CreateInstance(model);
+        Model = model;
 
         Position = position;
 
@@ -144,29 +140,21 @@ public class EnemyEntity : Entity
     private NK_TextMeshProUGUI? _intentText;
     private Animator? _intentAnimator;
 
-    private int _currentIndex = -1;
-    private string? Intent;
+    private EnemyAction NextIntent;
 
-    public void MoveIntent()
+    /// <summary>
+    /// Moves to the next intent
+    /// </summary>
+    internal void MoveIntent()
     {
-        string[]? intents = Model?.Intents;
-
-        if (intents == null)
-        {
-            Log("No intents defined.");
-            return;
-        }
-
-        _currentIndex++;
-
-        if (_currentIndex >= intents.Length)
-            _currentIndex -= intents.Length;
-
-        SetIntent(intents[_currentIndex]);
+        SetIntent(Model.GetNextAction(GameManager.Instance.TurnCount, this));
         UpdateIntent();
     }
 
-    public void SetIntent(string? value) => Intent = value;
+    /// <summary>
+    /// Sets the next intent to <paramref name="enemyAction"/>
+    /// </summary>
+    internal void SetIntent(EnemyAction enemyAction) => NextIntent = enemyAction;
 
     protected virtual void SetUpIntentUI(GameObject root)
     {
@@ -186,14 +174,6 @@ public class EnemyEntity : Entity
 
     private void UpdateIntent()
     {
-        EnemyAction action = GetIntentAction(Intent) ?? new EmptyAction();
-
-        if (Intent == EnemyAction.PlaceHolder)
-        {
-            // typeof(this) will give EnemyCard, not Red or Blue (e.g.)
-            Log($"A placeholder action was found in the enemy card with the portrait \'{Model?.Portrait}\'.");
-        }
-
         int containerLeftPadding = 30;
 
         if (Model == null)
@@ -201,7 +181,7 @@ public class EnemyEntity : Entity
 
         if (_intentText != null)
         {
-            string? text = action.GetText(this);
+            string? text = NextIntent.GetText(this);
             _intentText.text = text;
             _intentText.gameObject.SetActive(!string.IsNullOrEmpty(text));
 
@@ -217,7 +197,7 @@ public class EnemyEntity : Entity
             Log("Intent container was not found.");
 
         if (_intentIcon != null)
-            _intentIcon.SetSprite(action.Icon);
+            _intentIcon.SetSprite(NextIntent.Icon);
         else
             Log("Intent Icon was not found.");
     }
@@ -226,26 +206,24 @@ public class EnemyEntity : Entity
     {
         if (Model != null && Instance.Player != null)
         {
-            EnemyAction? action = GetIntentAction(Intent);
+            if (NextIntent is IntentEffectAction)
+                SoundManager.PlaySound("debuff", SoundManager.GeneralGroup);
 
-            if (action != null)
+            NextIntent.OnAction(this, Instance.Player);
+
+            string? animationName = NextIntent.AnimationName;
+
+            if (!string.IsNullOrEmpty(animationName) && _intentAnimator != null)
             {
-                action.OnAction(this, Instance.Player);
+                _intentAnimator.Play(animationName, 0);
 
-                if (!string.IsNullOrEmpty(action.AnimationName) && _intentAnimator != null)
+                var clips = _intentAnimator.runtimeAnimatorController.animationClips;
+                foreach (var item in clips)
                 {
-                    _intentAnimator.Play(action.AnimationName, 0);
-
-                    var clips = _intentAnimator.runtimeAnimatorController.animationClips;
-                    foreach (var item in clips)
-                    {
-                        if (item.name == action.AnimationName)
-                            return item.length;
-                    }
+                    if (item.name == animationName)
+                        return item.length;
                 }
             }
-            else
-                Log($"No action was registered with the tag \'{Intent ?? "null"}\'");
         }
         return 0;
     }
@@ -273,7 +251,7 @@ public class EnemyEntity : Entity
         EffectVisual = root.transform.Find("EffectVisual");
     }
 
-    protected override void OnEffectAdded<T>()
+    protected override void OnEffectUpdate(Effect effect)
     {
         UpdateIntent();
     }

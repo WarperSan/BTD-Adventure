@@ -1,6 +1,7 @@
 ﻿using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;
+using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -36,6 +37,8 @@ public abstract class Entity
 
     public bool IsAlive => Health > 0;
 
+    public int GetHealth() => Health;
+
     /// <summary>
     /// Called whenever the health UI needs an update
     /// </summary>
@@ -58,11 +61,11 @@ public abstract class Entity
 
         if (damage.IgnoresShield)
         {
-            RemoveHealth(damage.Amount);
+            RemoveHealth(damage.Amount, source);
         }
         else
         {
-            ShieldDamage(damage);
+            ShieldDamage(damage, source);
         }
 
         if (source != null)
@@ -72,14 +75,17 @@ public abstract class Entity
     }
     public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
 
-    protected void RemoveHealth(int amount) => ModifyHealth(amount, true);
-    protected void AddHealth(int amount) => ModifyHealth(amount, false);
-    private void ModifyHealth(int amount, bool isRemoving)
+    protected void RemoveHealth(int amount, Entity? source) => ModifyHealth(amount, true, source);
+    protected void AddHealth(int amount, Entity? source) => ModifyHealth(amount, false, source);
+    private void ModifyHealth(int amount, bool isRemoving, Entity? source)
     {
-        //this.ExecuteOnEffect(new Func<IHealthEffect, bool>((effect) => { amount = effect.ModifyAmount(amount); }));
+        OnHealthModify?.Invoke(ref amount);
 
         if (isRemoving)
         {
+            if (source != null)
+                SoundManager.PlaySound("swish_attack", SoundManager.GeneralGroup);
+
             Health -= amount;
         }
         else
@@ -104,7 +110,7 @@ public abstract class Entity
             MaxHealth = Math.Max(MaxHealth + amount, 0);
 
             if (Health > MaxHealth)
-                ModifyHealth(Health - MaxHealth, true);
+                ModifyHealth(Health - MaxHealth, true, null);
 
             UpdateHealthUI();
         }
@@ -116,7 +122,7 @@ public abstract class Entity
 
             // Scale up
             if (ScaleUpMaxHP)
-                AddHealth(Mathf.CeilToInt(MaxHealth * Health / (float)oldMH));
+                AddHealth(Mathf.CeilToInt(MaxHealth * Health / (float)oldMH), this);
         }
     }
 
@@ -137,28 +143,33 @@ public abstract class Entity
     protected NK_TextMeshProUGUI? ShieldText;
     protected GameObject? ShieldImg;
 
-    private void ShieldDamage(Damage damage)
+    private void ShieldDamage(Damage damage, Entity? source)
     {
         if (Shield < damage.Amount)
         {
-            RemoveHealth(damage.Amount - Shield);
-            ModifyShield(Shield, true); // Set to 0
+            RemoveHealth(damage.Amount - Shield, source);
+            RemoveShield(Shield, source); // Set it to 0
         }
         else
-            ModifyShield(damage.Amount, true);
+        {
+            if (source != null)
+                SoundManager.PlaySound("swish_shield", SoundManager.GeneralGroup);
+
+            ModifyShield(damage.Amount, true, source);
+        }
     }
 
-    public void AddShield(int amount) => ModifyShield(amount, false);
-    public void RemoveShield(int amount) => ModifyShield(amount, true);
-    public void RemoveShield() => RemoveShield(Shield);
+    internal void AddShield(int amount, Entity? source) => ModifyShield(amount, false, source);
+    internal void RemoveShield(int amount, Entity? source) => ModifyShield(amount, true, source);
+    internal void RemoveShield(Entity? source) => RemoveShield(Shield, source);
 
-    private void ModifyShield(int amount, bool isRemoving)
+    private void ModifyShield(int amount, bool isRemoving, Entity? source)
     {
         if (isRemoving)
         {
             if (amount > Shield)
             {
-                ModifyHealth(amount - Shield, true);
+                ModifyHealth(amount - Shield, true, source);
                 Shield = 0;
             }
             else
@@ -195,6 +206,8 @@ public abstract class Entity
         Shield = 0;
         UpdateShieldText();
     }
+
+    public int GetCurrentShield() => Shield;
 
     protected virtual void SetUpShieldUI(GameObject root) { }
 
@@ -313,9 +326,9 @@ public abstract class Entity
             effect.SetUpUI(this, effectObject);
 
             Subscribe(effect);
-
             _effects.Add(effect);
-            OnEffectAdded<T>();
+
+            OnEffectUpdate(effect);
         }
         return effect;
     }
@@ -324,12 +337,14 @@ public abstract class Entity
     /// Adds the <paramref name="amount"/> to <see cref="Effect.Level"/> of <paramref name="effect"/>.
     /// </summary>
     /// <returns>New <see cref="Effect.Level"/> of <paramref name="effect"/>.</returns>
-    private static int AddLevel(Effect effect, int amount)
+    private int AddLevel(Effect effect, int amount)
     {
         effect.Level += amount;
 
         // Update level
         effect.UpdateLevelText();
+
+        OnEffectUpdate(effect);
 
         return effect.Level;
     }
@@ -338,7 +353,7 @@ public abstract class Entity
     /// Adds the <paramref name="amount"/> to the <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.
     /// </summary>
     /// <returns>New <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.</returns>
-    private static int AddPermanentLevel(Effect effect, int amount)
+    private int AddPermanentLevel(Effect effect, int amount)
     {
         effect.LowestLevel += amount;
 
@@ -357,6 +372,7 @@ public abstract class Entity
     public bool RemoveEffect(Effect effect)
     {
         Unsubscribe(effect);
+        OnEffectUpdate(effect);
         return _effects.Remove(effect);
     }
 
@@ -419,7 +435,7 @@ public abstract class Entity
     }
 
     protected virtual void SetUpEffectUI(GameObject root) { }
-    protected virtual void OnEffectAdded<T>() where T : Effect { }
+    protected virtual void OnEffectUpdate(Effect effect) { }
     #endregion
 
     #region Events
