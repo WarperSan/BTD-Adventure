@@ -1,6 +1,4 @@
 ﻿using BTD_Mod_Helper.Api;
-using BTDAdventure.Cards.Enemies;
-using BTDAdventure.Cards.Heroes;
 using BTDAdventure.Entities;
 using System.Collections.Generic;
 
@@ -39,14 +37,22 @@ public class WarriorClass : RogueClass
     {
         return new List<HeroCard>()
         {
-            new DartMonkey000(),
-            new DartMonkey000(),
-            new DartMonkey000(),
-            new DartMonkey000(),
-            new WizardMonkey000(),
-            new MonkeyVillage000(),
-            new MonkeyVillage000(),
-            new MonkeyVillage000(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            new Dart003(),
+            //new Dart000(),
+            //new Dart000(),
+            //new Dart000(),
+            //new Dart000(),
+            //new Boomerang000(),
+            //new Ice000(),
+            //new Ice000(),
+            //new Ice000(),
             /*
             new DartMonkey000(),
             new DartMonkey000(),

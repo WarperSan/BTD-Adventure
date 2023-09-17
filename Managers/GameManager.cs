@@ -97,20 +97,9 @@ internal class GameManager
     public bool IsTypeAnEffect(Type type) => IsGivenTypeInArray<Effect>(EffectsType, type, true);
     #endregion
 
-    #region Piles
-    private readonly List<HeroCard> _globalCardList = new();
-    private readonly List<HeroCard> _exileCardList = new();
-    private readonly List<HeroCard> _discardCardList = new();
-    private List<HeroCard> _drawCardList = new();
-
-    public int DiscardPileCount => _discardCardList.Count;
-    public int DrawPileCount => _drawCardList.Count;
-
-    private readonly HeroCard?[] _hand = new HeroCard?[MaxPlayerCardCount];
-    #endregion
-
     #region Managers
     internal UIManager? UiManager;
+    private CardManager? CardManager;
     #endregion
 
     private bool _isFirstFight;
@@ -172,13 +161,7 @@ internal class GameManager
         // Create Player entity
         Player = new(mainUI.gameObject, 50, new WarriorClass());
 
-        List<HeroCard> c = Player.RogueClass.InitialCards();
-
-        _globalCardList.Clear();
-        foreach (var item in c)
-        {
-            _globalCardList.Add(item);
-        }
+        this.CardManager = new(Player.RogueClass);
 
         Player?.UpdatePlayerUI(); // Put values on the labels
         UiManager?.GameUI?.SetActive(false);
@@ -188,8 +171,6 @@ internal class GameManager
     {
         try
         {
-            CardCounters.Clear();
-
             _turnCount = uint.MaxValue;
             FightDifficulty = 0;
 
@@ -226,59 +207,13 @@ internal class GameManager
         Player?.RemoveAllEffects();
 
         // Reset piles
-        EmptyHand(false);
-        _discardCardList.Clear();
-        _exileCardList.Clear();
+        // Copy owned cards to draw pile
+        this.CardManager?.ResetPiles();
+        this.CardManager?.ClearCounters();
 
         // Set-up player cards UI if necessary
         if (_isFirstFight)
             this.UiManager?.InitPlayerCards();
-
-        // Copy owned cards to draw pile
-        _drawCardList = new(_globalCardList);
-    }
-
-    private void FillHand(int amount, int? position = null, bool swingAnimation = false)
-    {
-        if (amount > MaxPlayerCardCount)
-        {
-            Log($"Cannot fill a hand bigger than the set limit. ({amount} > {MaxPlayerCardCount})");
-            return;
-        }
-
-        for (int i = 0; i < amount; i++)
-        {
-            // Empty discard pile if needed
-            if (_drawCardList.Count == 0)
-            {
-                _drawCardList = new(_discardCardList);
-                _discardCardList.Clear();
-                SoundManager.PlaySound("shuffle", SoundManager.GeneralGroup);
-            }
-
-            int rdmIndex = UnityEngine.Random.Range(0, _drawCardList.Count);
-
-            HeroCard selectedCard = _drawCardList[rdmIndex];
-
-            int pos = position ?? i;
-
-            // Update card
-            //selectedCard.UpdateCard(ownCardsObjects[pos].transform);
-
-            HeroCard? handCard = _hand[pos];
-
-            if (handCard != null)
-            {
-                _discardCardList.Add(handCard);
-            }
-
-            _hand[pos] = selectedCard;
-            UiManager?.SetUpPlayerCard(pos, selectedCard, swingAnimation);
-
-            _drawCardList.RemoveAt(rdmIndex);
-        }
-
-        Player?.UpdatePiles();
     }
 
     private void StartPlayerTurn()
@@ -321,7 +256,7 @@ internal class GameManager
         Player?.ResetMana();
 
         // Fill hand
-        FillHand(MaxPlayerCardCount, swingAnimation: !_isFirstFight);
+        this.CardManager?.FillHand(MaxPlayerCardCount, swingAnimation: !_isFirstFight);
 
         // Check pre-turn skills
 
@@ -329,27 +264,9 @@ internal class GameManager
             UiManager.EndTurnBtn.interactable = true;
     }
 
-    private void EmptyHand(bool updatePiles = true)
-    {
-        for (int i = 0; i < _hand.Length; i++)
-        {
-            HeroCard? handCard = _hand[i];
-
-            if (handCard != null)
-                _discardCardList.Add(handCard);
-
-            _hand[i] = null;
-        }
-
-        UiManager?.SetLockState(true);
-
-        if (updatePiles)
-            Player?.UpdatePiles();
-    }
-
     public void EndTurn()
     {
-        EmptyHand();
+        this.CardManager?.EmptyHand();
         SelectCard(-1);
         Player?.UpdateEffects();
 
@@ -391,82 +308,38 @@ internal class GameManager
         _isFirstFight = true;
 
         // Reset indexes
-        SelectedCardIndex = -1;
         SelectedEnemyIndex = -1;
-
-        // Reset piles
-        _globalCardList.Clear();
-        _exileCardList.Clear();
-        _discardCardList.Clear();
-        _drawCardList.Clear();
 
         // Reset enemies
         for (int i = 0; i < _enemies.Length; i++) { _enemies[i] = null; }
     }
 
+    #region World
     private World? CurrentWorld;
-    internal void SetWord(World world) => CurrentWorld = world;
+    internal void SetWord(World world)
+    {
+        CurrentWorld = world;
+        CurrentWorld.FindEnemies();
+    }
+
+#nullable disable
     internal World GetWorld()
     {
-        CurrentWorld ??= new Forest();
+        if (CurrentWorld == null)
+            SetWord(new Worlds.Forest());
         return CurrentWorld;
     }
+#nullable enable
+    #endregion
 
     #region Player
     #region Card
-    private readonly Dictionary<string, int> CardCounters = new();
-
-    internal void AddCard(HeroCard card) => _globalCardList.Add(card);
-
-    private int SelectedCardIndex = -1;
-    internal HeroCard? GetCard() => SelectedCardIndex == -1 ? null : _hand[SelectedCardIndex];
-    internal void SelectCard(int index)
-    {
-        if (SelectedCardIndex != -1)
-            UiManager?.SetCardCursorState(SelectedCardIndex, false);
-
-        SelectedCardIndex = index;
-
-        if (SelectedCardIndex != -1 && (bool)Main.ShowCardCursor.GetValue())
-            UiManager?.SetCardCursorState(SelectedCardIndex, true);
-    }
-
-    private void PlayCard()
-    {
-        if (Player == null)
-        {
-            Log("No player instance was assigned.");
-            return;
-        }
-
-        HeroCard? card = GetCard();
-
-        // Play card
-        Player.RemoveMana(1);
-
-        if (card != null)
-        {
-            Player.PreAction(card);
-
-            if (!Player.BlockCardOnPlay(card))
-                card.PlayCard();
-
-            Player.PostAction(card);
-        }
-
-        FillHand(1, SelectedCardIndex, true);
-
-        SelectCard(-1);
-        SelectedEnemyIndex = -1;
-    }
-
-    internal int GetCounter(string name) => CardCounters.ContainsKey(name) ? CardCounters[name] : 0;
-    internal int AddCounter(string name, int value)
-    {
-        int v = GetCounter(name) + value;
-        CardCounters[name] = v;
-        return v;
-    }
+    internal void AddCardPermanent(HeroCard card) => this.CardManager?.AddCardPermanent(card);
+    internal void AddCard(HeroCard card) => this.CardManager?.AddCard(card);
+    internal HeroCard? GetCard() => this.CardManager?.GetCard();
+    internal void SelectCard(int index) => this.CardManager?.SelectCard(index);
+    internal int GetCounter(string name) => this.CardManager?.GetCounter(name) ?? 0;
+    internal int AddCounter(string name, int value) => this.CardManager?.AddCounter(name, value) ?? 0;
     #endregion
 
     #region Effect
@@ -556,9 +429,10 @@ internal class GameManager
         Log("The current enemy selected is: " + SelectedEnemyIndex);
 #endif
 
-        if (GetCard() == null || Player?.Mana == 0 || Player?.IsAlive == false)
+        if (Player?.Mana == 0 || Player?.IsAlive == false)
             return;
-        PlayCard();
+
+        this.CardManager?.PlayCard();
     }
 
     /// <summary>
@@ -712,7 +586,7 @@ internal class GameManager
             return;
         }
 
-        CurrentWorld ??= new Forest();
+        CurrentWorld ??= new Worlds.Forest();
 
         EnemyCard[] enemies = world.GetEnemies(encounterType);
 

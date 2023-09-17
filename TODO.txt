@@ -1,13 +1,17 @@
 List of things to do
 
 Very important:
-- Clean classes (moving tasks to new managers)
+- Fix SFX
+- Change the reward system to include a risk level
 - Change enemy intent system to a method (give context to the card)
 - Fix animation glitch
 - Fix when the effects get depete
 - Add final boss
 - Add starting node (give cards)
+- Make enemies fair
+- Fix Weakness
 - Add menu before starting a game (to set seed)
+- Clean classes (moving tasks to new managers)
 - Add screen vibrations on death
 - Add sounds
 - Make the random offset system more complexe
@@ -26,6 +30,7 @@ Fairly important:
 Slightly important:
 - Class selection menu
 - Save file system
+- Change the rewards to look like lootboxes
 - Replace curtain bottom
 - Replace curtain top
 - Replace reward ui title bg

@@ -1,6 +1,8 @@
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Managers;
+using Il2CppAssets.Scripts.Unity.UI_New;
+using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using System.Collections.Generic;
 using System.Drawing;
 using UnityEngine;
@@ -390,6 +392,7 @@ public class MapGenerator : MonoBehaviour
             UnlockLayer(layer);
         else
         {
+            InGame.instance.QuitToMainMenu();
             Log("Thank you for playing ! This is the end of the game so far :)");
             // Next World
         }

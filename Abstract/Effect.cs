@@ -1,5 +1,6 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
+using BTDAdventure.Cards;
 using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;

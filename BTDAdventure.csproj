@@ -8,7 +8,7 @@
         <LangVersion>latest</LangVersion>
         <Optimize>False</Optimize>
         <DebugType>embedded</DebugType>
-        <BaseOutputPath>C:\Program Files (x86)\Steam\steamapps\common\BloonsTD6\Mods</BaseOutputPath>
+        <BaseOutputPath>C:\Users\Phillipe\OneDrive - Collège Lionel-Groulx\Documents\GitHub\BTD-Adventure\bin</BaseOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
       <LangVersion>preview</LangVersion>
@@ -67,4 +67,8 @@
       <Folder Include="Bundles\" />
       <Folder Include="Resources\" />
     </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+      <Exec Command="copy &quot;$(TargetDir)$(TargetFileName)&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\BloonsTD6\Mods&quot; /y" />
+    </Target>
 </Project>

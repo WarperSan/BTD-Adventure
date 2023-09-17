@@ -117,10 +117,10 @@ public class PlayerEntity : Entity
     private NK_TextMeshProUGUI? DrawPileText;
     private NK_TextMeshProUGUI? DiscardPileText;
 
-    public void UpdatePiles()
+    internal void UpdatePiles(CardManager cardManager)
     {
-        DrawPileText?.UpdateText(GameManager.Instance.DrawPileCount);
-        DiscardPileText?.UpdateText(GameManager.Instance.DiscardPileCount);
+        DrawPileText?.UpdateText(cardManager.DrawPileCount);
+        DiscardPileText?.UpdateText(cardManager.DiscardPileCount);
     }
     #endregion
 

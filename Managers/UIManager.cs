@@ -1,5 +1,4 @@
-﻿using BTD_Mod_Helper;
-using BTD_Mod_Helper.Api;
+﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Components;
@@ -298,7 +297,8 @@ internal class UIManager
 
     internal void SetCardCursorState(int index, bool state)
     {
-        PlayerCards[index]?.transform?.Find("SelectCard")?.gameObject?.SetActive(state);
+        if (index < PlayerCards.Length && index >= 0)
+            PlayerCards[index]?.transform?.Find("SelectCard")?.gameObject?.SetActive(state);
     }
     #endregion
 
@@ -364,7 +364,7 @@ internal class UIManager
 
         MapGenerator.SetUp(MapGenerator.transform.Find("Scroll View/Viewport/Content/MapObjects")?.GetComponent<RectTransform>());
 
-        GameManager.Instance.SetWord(new Forest());
+        GameManager.Instance.SetWord(ModContent.GetInstance<Worlds.Forest>());
         MapGenerator.GenerateMap(UnityEngine.Random.Range(0, 100));
         MapGenerator.ProgressLayer();
     }
@@ -391,7 +391,7 @@ internal class UIManager
         });
 
         InitializeText(goBackBtn.Find("Render"), 90, TextAlignmentOptions.Center, initialText: "Back to Home");
-        
+
         var titleText = InitializeText(DeathUI.transform.Find("Panel/Title"), 160, TextAlignmentOptions.Center, initialText: "You died !");
 
         if (titleText != null)

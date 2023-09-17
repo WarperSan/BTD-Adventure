@@ -1,21 +1,23 @@
 ﻿global using BTDAdventure.Abstract;
 global using BTDAdventure.Cards.EnemyCards;
-global using BTDAdventure.Cards.HeroCard;
+global using BTDAdventure.Cards.Monkeys;
 global using static BTDAdventure.Abstract.EnemyAction;
 global using static BTDAdventure.Managers.GameManager;
 global using static BTDAdventure.Managers.UIManager;
 global using IEnumerator = System.Collections.IEnumerator;
 
 using BTD_Mod_Helper;
+using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure;
 using BTDAdventure.Components;
 using BTDAdventure.Managers;
+using BTDAdventure.Ui;
 using Il2Cpp;
+using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -145,20 +147,24 @@ public class Main : BloonsTD6Mod
 
         btdAdBtn.GetComponent<Button>().AddOnClick(new Function(() =>
         {
-            // Load game
-            // https://github.com/Void-n-Null/QuickGame/blob/main/QuickGame.cs W
-            InGameData.Editable.selectedMap = "MiddleOfTheRoad"; // Map type
-            InGameData.Editable.selectedMode = "Easy"; // Removes the popup
-            
-            // Does not matter
-            InGameData.Editable.selectedDifficulty = "Easy";
-            // ---
-
-            _wasFromMe = true;
-            UI.instance.LoadGame();
+            LoadGame("Sanctuary");
+            //ModGameMenu.Open<StartUpUi>();
         }));
     }
 
+    internal void LoadGame(string map)
+    {
+        // https://github.com/Void-n-Null/QuickGame/blob/main/QuickGame.cs W
+        InGameData.Editable.selectedMap = map; // Map type
+        InGameData.Editable.selectedMode = "Easy"; // No popup
+
+        // Does not matter
+        InGameData.Editable.selectedDifficulty = "Easy";
+        // ---
+
+        _wasFromMe = true;
+        UI.instance.LoadGame();
+    }
     #region Settings
     internal static ModSettingDouble EnemySpeed = new(0.25)
     {

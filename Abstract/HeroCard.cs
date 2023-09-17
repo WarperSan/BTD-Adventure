@@ -1,11 +1,16 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
+using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Effects;
 using BTDAdventure.Managers;
+using Il2CppAssets.Scripts.Models.Towers;
 using Il2CppAssets.Scripts.Models.TowerSets;
+using Il2CppAssets.Scripts.Unity;
+using Il2CppMono.Math.Prime;
+using System.Linq;
 using Color = System.Drawing.Color;
 
-namespace BTDAdventure.Cards.HeroCard;
+namespace BTDAdventure.Cards.Monkeys;
 
 public abstract class HeroCard : ModContent
 {
@@ -16,13 +21,21 @@ public abstract class HeroCard : ModContent
     /// </summary>
     public abstract string Portrait { get; }
 
-    public virtual string Description => "No description provided.";
+    /// <summary>
+    /// Description of the card at run time
+    /// </summary>
+    public abstract string Description { get; }
+
     public virtual string RewardDescription => Description;
 
     /// <summary>
     /// Determines in which category (primary, magic, military) the tower is in
     /// </summary>
-    public virtual TowerSet? Type { get; } = null;
+    public abstract TowerSet? Type { get; }
+
+    public virtual bool ExileOnPlay => false;
+
+    public virtual bool CanBeReward => true;
 
     #region Background
     public string? GetBackgroundGUID() => Type switch
@@ -40,12 +53,7 @@ public abstract class HeroCard : ModContent
     protected virtual string? GetCustomBackgroundGUID() => null;
     #endregion
 
-    internal virtual void PlayCard()
-    {
-#if DEBUG
-        Log($"The card \'{DisplayName}\' was played, but it has no effect.");
-#endif
-    }
+    internal abstract void PlayCard();
 
     #region Attack
     protected static void AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
@@ -53,7 +61,7 @@ public abstract class HeroCard : ModContent
     protected static void AttackAllEnemies(int amount) => AttackAllEnemies(new Damage(amount));
     protected static void AttackAllEnemies(Damage damage) => GameManager.Instance.AttackAllEnemies(damage);
 
-    protected string CalculateDamage(int amount, bool changeColor)
+    protected string CalculateDamage(int amount, bool changeColor = true)
     {
         int realAmount = GameManager.Instance.GetPlayerDamage(amount);
 
@@ -89,13 +97,17 @@ public abstract class HeroCard : ModContent
     protected static void AddShield(int amount) => GameManager.Instance.Player?.AddShield(amount, null);
     #endregion
 
-    #region Frame
+    #region Cards
+    protected static void AddCard(HeroCard card) => GameManager.Instance.AddCard(card);
+    #endregion
 
+    #region Mana
+    protected static void AddMana(uint amount) => GameManager.Instance.GainMana(amount);
     #endregion
 
     #region Counter
     protected static int GetCounter(string name) => GameManager.Instance.GetCounter(name);
-    protected static int AddCounter(string name, int value) => GameManager.Instance.AddCounter(name, value);
+    protected static int AddCounter(string name, int value) => GameManager.Instance.AddCounter(name, value);
     #endregion
 
     public override void Register()
@@ -106,54 +118,43 @@ public abstract class HeroCard : ModContent
     }
 }
 
-public class DartMonkey000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.DartMonkey000;
-    public override TowerSet? Type => TowerSet.Primary;
+//public abstract class MonkeyCard : HeroCard
+//{
+//    /// <inheritdoc/>
+//    public sealed override string DisplayName => _displayName;
 
-    public override string DisplayName => "Base Dart Monkey";
+//    /// <inheritdoc/>
+//    public sealed override string Portrait => _portrait;
 
-    public override string Description => $"Deals {CalculateDamage(6, true)} damage to the selected enemy";
+//    /// <inheritdoc/>
+//    public sealed override TowerSet? Type => _type;
 
-    internal override void PlayCard()
-    {
-        AttackEnemy(6);
-        AddLevelEnemy<WeaknessEffect>(5);
-        //AttackAllEnemies(50);
-    }
-}
+//    /// <summary>
+//    /// Model from which the informations will be selected
+//    /// </summary>
+//    protected abstract TowerModel? TowerModel { get; }
 
-public class WizardMonkey000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.Wizard000;
-    public override TowerSet? Type => TowerSet.Magic;
+//    readonly string _displayName = string.Empty;
+//    readonly string _portrait = string.Empty;
+//    readonly TowerSet _type = TowerSet.None;
 
-    public override string DisplayName => "Base Wizard Monkey";
+//    public MonkeyCard()
+//    {
+//        if (TowerModel == null)
+//            return;
 
-    public override string Description => $"Applies {3} Weakness and deals {CalculateDamage(3, true)} damage";
+//        // Portrait
+//        _portrait = TowerModel.portrait.guidRef;
 
-    internal override void PlayCard()
-    {
-        AddLevelEnemy<WeaknessEffect>(3);
-        AttackEnemy(3);
-    }
-}
+//        // Tower Type
+//        _type = TowerModel.towerSet;
 
-public class Druid030 : HeroCard
-{
-    public override string DisplayName => "Druid 030";
-    public override string Portrait => VanillaSprites.Druid030;
-    public override TowerSet? Type => TowerSet.Magic;
-
-    public override string Description => $"Deals {GetEffectPlayer<ThornsEffect>()} damage and applies {2} Thorns";
-    public override string RewardDescription => $"Deals X damage to the selected enemy, where X is the number of Thorns active";
-
-    internal override void PlayCard()
-    {
-        AttackEnemy(GetEffectPlayer<ThornsEffect>());
-        AddPermanentLevelPlayer<ThornsEffect>(2);
-    }
-}
+//        // Upgrade name
+//        int maxValue = TowerModel.tiers.Max();
+        
+//        _displayName = TowerModel.GetUpgrade(TowerModel.tiers.IndexOf(maxValue), maxValue).LocsKey;
+//    }
+//}
 
 public class MonkeyVillage000 : HeroCard
 {
@@ -162,40 +163,11 @@ public class MonkeyVillage000 : HeroCard
 
     public override string DisplayName => "Base Monkey Village";
 
-    public override string Description => $"Adds {6} shield";
+    public override string Description => $"Adds {12} shield";
 
     internal override void PlayCard()
     {
-        AddShield(6);
-    }
-}
-
-public class MonkeyAce000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.MonkeyAce000;
-    public override TowerSet? Type => TowerSet.Military;
-    public override string DisplayName => "Base Monkey Ace";
-
-    public override string Description => $"Deals {CalculateDamage(3, true)} to all enemies";
-
-    internal override void PlayCard()
-    {
-        AttackAllEnemies(3);
-    }
-}
-
-public class BoomerangMonkey000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.BoomerangMonkey000;
-    public override TowerSet? Type => TowerSet.Primary;
-    public override string DisplayName => "Base Boomerang Monkey";
-
-    public override string Description => $"Deals {CalculateDamage(2, true)} damage to the enemy and an extra {CalculateDamage(3, true)} to all enemies";
-
-    internal override void PlayCard()
-    {
-        AttackEnemy(2);
-        AttackAllEnemies(3);
+        AddShield(12);
     }
 }
 

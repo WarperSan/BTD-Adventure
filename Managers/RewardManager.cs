@@ -4,6 +4,7 @@ using BTD_Mod_Helper.Extensions;
 using Il2Cpp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -53,21 +54,18 @@ internal class RewardManager(UIManager? uIManager)
         Reward?[] rewards = new Reward?[amountOfRewards];
 
         // Randomize the rewards
-        var allCards = ModContent.GetContent<HeroCard>();
-
-        List<int> positions = new();
-
-        for (int i = 0; i < allCards.Count; i++) positions.Add(i);
+        var allCards = ModContent.GetContent<HeroCard>().Where(x => x.CanBeReward).ToList();
 
         for (int i = 0; i < 3; i++)
         {
-            int rdmIndex = UnityEngine.Random.Range(0, positions.Count);
+            int rdmIndex = UnityEngine.Random.Range(0, allCards.Count);
+            (allCards[rdmIndex], allCards[^1]) = (allCards[^1], allCards[rdmIndex]);
             rewards[i] = new Reward()
             {
-                HeroCard = allCards[positions[rdmIndex]]
+                HeroCard = allCards[^1]
             };
 
-            positions.RemoveAt(rdmIndex);
+            allCards.RemoveAt(allCards.Count - 1);
         }
 
         rewards[^1] = new Reward()
@@ -158,7 +156,7 @@ internal class RewardManager(UIManager? uIManager)
             else if (Cash != null)
                 GameManager.Instance.Player?.AddCoins(Cash.Value);
             else if (HeroCard != null)
-                GameManager.Instance.AddCard(HeroCard);
+                GameManager.Instance.AddCardPermanent(HeroCard);
 #if DEBUG
             else
                 Log("A reward with no valid content was claimed.");
