@@ -13,7 +13,8 @@ public abstract class RogueClass : ModContent
     /// </summary>
     /// <param name="player"></param>
     /// <param name="card">Card playerd</param>
-    public virtual void OnPreCardPlay(PlayerEntity player, HeroCard card) { }
+    public virtual void OnPreCardPlay(PlayerEntity player, HeroCard card)
+    { }
 
     /// <summary>
     /// Called after a card is played
@@ -21,7 +22,8 @@ public abstract class RogueClass : ModContent
     /// <param name="player"></param>
     /// <param name="card">Card playerd</param>
     /// <param name="target"></param>
-    public virtual void OnCardPlayed(PlayerEntity player, HeroCard card, EnemyCard target) { }
+    public virtual void OnCardPlayed(PlayerEntity player, HeroCard card, EnemyCard target)
+    { }
 
     public override void Register()
     {

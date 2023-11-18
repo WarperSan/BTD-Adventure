@@ -4,7 +4,7 @@ using BTDAdventure.Entities;
 
 namespace BTDAdventure.Cards.Enemies;
 
-abstract class Yellow : RegularBloon
+internal abstract class Yellow : RegularBloon
 {
     public override int MaxHP => 140;
     public override int Damage => 5;

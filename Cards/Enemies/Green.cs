@@ -6,7 +6,7 @@ using BTDAdventure.Entities;
 
 namespace BTDAdventure.Cards.Enemies;
 
-abstract class Green : RegularBloon
+internal abstract class Green : RegularBloon
 {
     public override int MaxHP => 100;
     public override int Damage => 4;
@@ -23,7 +23,7 @@ internal class Green1 : Green
     // Attack 4 13
     // Wait 5 14
 
-    // Wait 6 15 
+    // Wait 6 15
     // Double 7 16
     // Immune 8 17
     public override EnemyAction GetNextAction(uint roundCount, EnemyEntity source) => (roundCount % 9) switch
@@ -64,6 +64,7 @@ internal class Green3 : Green
 internal class GreenImmune : IntentEffectAction
 {
     public override string? GetText(EnemyEntity source) => "4";
+
     public override void OnAction(EnemyEntity source, PlayerEntity player)
     {
         source.AddLevel<ImmuneEffect>(4);

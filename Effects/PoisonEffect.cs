@@ -11,6 +11,6 @@ internal class PoisonEffect : Effect, ITurnEffect
     {
         entity.ReceiveDamage(null, Level);
         entity.PlayEffectVisual("PoisonEffect");
-        SoundManager.PlaySound("damage_poison", SoundManager.GeneralGroup, 0.2f);
+        SoundManager.PlaySound(SoundManager.SOUND_POISON_TICK, SoundManager.GeneralGroup, 0.2f);
     }
 }

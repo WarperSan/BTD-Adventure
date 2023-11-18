@@ -15,7 +15,7 @@ internal class RewardManager(UIManager? uIManager)
     private readonly UIManager? UiManager = uIManager;
     internal List<GameObject?> _rewardsObj = new();
 
-    int rewardIndex = -1;
+    private int rewardIndex = -1;
 
     internal void OpenRewardUI()
     {
@@ -47,6 +47,7 @@ internal class RewardManager(UIManager? uIManager)
 
     // 3 cards + 1 bjms reward
     private Reward?[]? _rewards;
+
     private static Reward?[] GenerateRewards()
     {
         int amountOfRewards = 4;
@@ -54,7 +55,7 @@ internal class RewardManager(UIManager? uIManager)
         Reward?[] rewards = new Reward?[amountOfRewards];
 
         // Randomize the rewards
-        var allCards = ModContent.GetContent<HeroCard>().Where(x => x.CanBeReward).ToList();
+        var allCards = ModContent.GetContent<HeroCard>().Where(x => x.CanBeReward).ToList();
 
         for (int i = 0; i < 3; i++)
         {
@@ -146,6 +147,7 @@ internal class RewardManager(UIManager? uIManager)
     {
         // Rewards can be a card, bloonjamins, nothing (or cash)
         public HeroCard? HeroCard;
+
         public uint? Bloonjamins;
         public uint? Cash;
 

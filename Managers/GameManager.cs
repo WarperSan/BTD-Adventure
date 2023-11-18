@@ -12,9 +12,11 @@ namespace BTDAdventure.Managers;
 internal class GameManager
 {
     #region Constants
+
     public const int MaxEnemiesCount = 3;
     public const int MaxPlayerCardCount = 4;
-    #endregion
+
+    #endregion Constants
 
     internal static GameManager Instance { get; set; } = new();
 
@@ -27,6 +29,7 @@ internal class GameManager
     }
 
     #region Static
+
     internal static Type[] InitializeAirport<T>()
     {
         try
@@ -51,6 +54,7 @@ internal class GameManager
             throw;
         }
     }
+
     public static Type[] FindDerivedTypes<T>()
     {
         Type baseType = typeof(T);
@@ -88,25 +92,32 @@ internal class GameManager
         }
         return r;
     }
-    #endregion
+
+    #endregion Static
 
     #region Airports
+
     internal PlayerEntity? Player;
 
     internal Type[]? EffectsType;
+
     public bool IsTypeAnEffect(Type type) => IsGivenTypeInArray<Effect>(EffectsType, type, true);
-    #endregion
+
+    #endregion Airports
 
     #region Managers
+
     internal UIManager? UiManager;
     private CardManager? CardManager;
-    #endregion
+
+    #endregion Managers
 
     private bool _isFirstFight;
 
     // Prevents infinite battles.
     // Each X turns, enemies will gain +1 base damage
     private const byte TurnsPerDifficulty = 10;
+
     private uint _turnCount = 0;
     public uint TurnCount => _turnCount;
     internal int FightDifficulty = 0;
@@ -189,14 +200,12 @@ internal class GameManager
             StartPlayerTurn();
 
             _isFirstFight = false;
-
         }
         catch (Exception e)
         {
             Log(e.Message);
             throw;
         }
-
     }
 
     private void PopulatePlayer()
@@ -279,7 +288,7 @@ internal class GameManager
 
     private void OnVictory()
     {
-        SoundManager.PlaySound("victory", SoundManager.GeneralGroup);
+        SoundManager.PlaySound(SoundManager.SOUND_FIGHT_WON, SoundManager.GeneralGroup);
 
         UiManager?.VictoryUI?.SetActive(true);
         if (UiManager != null && UiManager.VictoryBtn != null)
@@ -297,7 +306,7 @@ internal class GameManager
 
     internal void OnDefeat()
     {
-        SoundManager.PlaySound("defeat", SoundManager.GeneralGroup);
+        SoundManager.PlaySound(SoundManager.SOUND_FIGHT_LOST, SoundManager.GeneralGroup);
 
         UiManager?.ShowDeathUI();
     }
@@ -315,35 +324,49 @@ internal class GameManager
     }
 
     #region World
+
     private World? CurrentWorld;
+
     internal void SetWord(World world)
     {
         CurrentWorld = world;
-        CurrentWorld.FindEnemies();
     }
 
 #nullable disable
+
     internal World GetWorld()
     {
         if (CurrentWorld == null)
             SetWord(new Worlds.Forest());
         return CurrentWorld;
     }
+
 #nullable enable
-    #endregion
+
+    #endregion World
 
     #region Player
+
     #region Card
-    internal void AddCardPermanent(HeroCard card) => this.CardManager?.AddCardPermanent(card);
-    internal void AddCard(HeroCard card) => this.CardManager?.AddCard(card);
+
+    internal void AddCardPermanent(HeroCard card) => this.CardManager?.AddCard(card, true);
+
+    internal void AddCard(HeroCard card) => this.CardManager?.AddCard(card, false);
+
     internal HeroCard? GetCard() => this.CardManager?.GetCard();
+
     internal void SelectCard(int index) => this.CardManager?.SelectCard(index);
+
     internal int GetCounter(string name) => this.CardManager?.GetCounter(name) ?? 0;
+
     internal int AddCounter(string name, int value) => this.CardManager?.AddCounter(name, value) ?? 0;
-    #endregion
+
+    #endregion Card
 
     #region Effect
+
     internal int GetEffectLevelPlayer<T>() where T : Effect => GetEffectLevelTarget<T>(Player);
+
     internal void AddPermanentLevelPlayer<T>(int amount) where T : Effect => AddPermaLevelToTarget<T>(null, Player, amount);
 
     /// <summary>
@@ -353,15 +376,18 @@ internal class GameManager
     /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
     /// </remarks>
     internal void AddLevelPlayer<T>(int amount) where T : Effect => AddLevelToTarget<T>(null, Player, amount);
-    #endregion
+
+    #endregion Effect
 
     internal int GetPlayerDamage(int damage) => Player?.GetAttack(damage) ?? 0;
 
     internal void GainMana(uint amount) => Player?.AddMana(amount);
-    #endregion
+
+    #endregion Player
 
     #region Coroutines
-    IEnumerator ExecuteActionCoroutine()
+
+    private IEnumerator ExecuteActionCoroutine()
     {
         // Lock all cards
         UiManager?.SetLockState(true);
@@ -371,7 +397,7 @@ internal class GameManager
 
         foreach (var item in _enemies) item?.PreTurn();
 
-        float value = (float)(double)Main.EnemySpeed.GetValue();
+        float value = (float)Main.GetSettingValue<double>(Main.SETTING_ENEMY_SPEED);
 
         foreach (var item in _enemies)
         {
@@ -412,10 +438,13 @@ internal class GameManager
 
         StartPlayerTurn();
     }
-    #endregion
+
+    #endregion Coroutines
 
     #region Enemy
+
     private int SelectedEnemyIndex = -1;
+
     /// <summary>
     /// Array of the enemies. If the item is null, no enemy is at this position
     /// </summary>
@@ -502,6 +531,7 @@ internal class GameManager
     }
 
     #region Attack
+
     /// <summary>
     /// Attacks the selected enemy with the given damage
     /// </summary>
@@ -510,7 +540,8 @@ internal class GameManager
     /// <summary>
     /// Attacks all enemies the given damage
     /// </summary>
-    internal void AttackAllEnemies(Damage damage) { foreach (var item in _enemies) AttackEnemy(damage, item); }
+    internal void AttackAllEnemies(Damage damage)
+    { foreach (var item in _enemies) AttackEnemy(damage, item); }
 
     /// <summary>
     /// Attacks <paramref name="target"/> with <paramref name="damage"/>
@@ -521,9 +552,11 @@ internal class GameManager
         damage.Amount = Player?.GetAttack() ?? 0;
         Player?.AttackTarget(damage, target);
     }
-    #endregion
+
+    #endregion Attack
 
     #region Effect
+
     /// <summary>
     /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
     /// </summary>
@@ -538,7 +571,9 @@ internal class GameManager
     /// <remarks>
     /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
     /// </remarks>
-    internal void AddLevelToAll<T>(int amount) where T : Effect { foreach (var item in _enemies) AddLevelToTarget<T>(Player, item, amount); }
+    internal void AddLevelToAll<T>(int amount) where T : Effect
+    { foreach (var item in _enemies) AddLevelToTarget<T>(Player, item, amount); }
+
     private static void AddLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
     {
         if (source != null)
@@ -548,6 +583,7 @@ internal class GameManager
 
         target?.AddLevel<T>(amount);
     }
+
     private static void AddPermaLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
     {
         if (source != null)
@@ -557,8 +593,10 @@ internal class GameManager
 
         target?.AddPermanentLevel<T>(amount);
     }
+
     private static int GetEffectLevelTarget<T>(Entity? target) where T : Effect => target?.GetEffectLevel<T>() ?? 0;
-    #endregion
+
+    #endregion Effect
 
     /// <returns>Count of enemies still alive</returns>
     public int GetEnemyCount()
@@ -603,9 +641,11 @@ internal class GameManager
             AddEnemy(enemy, false);
         }
     }
-    #endregion
+
+    #endregion Enemy
 
     #region Bundle
+
     private static AssetBundle? MainBundle;
 
     internal GameObject? PlayerCardPrefab;
@@ -649,9 +689,11 @@ internal class GameManager
             return default;
         }
     }
-    #endregion
+
+    #endregion Bundle
 
     #region Logging
+
     /// <summary>
     /// Called whenever you need to check if <paramref name="obj"/> is null and display an error message if it is
     /// </summary>
@@ -669,5 +711,6 @@ internal class GameManager
     /// </summary>
     public static void Log(object? obj, [System.Runtime.CompilerServices.CallerMemberName] string? source = null)
         => BTD_Mod_Helper.ModHelper.GetMod<Main>().LoggerInstance.Msg($"{(string.IsNullOrEmpty(source) ? "" : $"[{source}]")} {obj ?? "null"}");
-    #endregion
+
+    #endregion Logging
 }

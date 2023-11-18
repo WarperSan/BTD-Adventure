@@ -12,6 +12,7 @@ public abstract class EnemyCard : ModContent
     public abstract string? Portrait { get; }
 
     #region Stats
+
     /// <summary>
     /// Defines the default amount of max HP the enemy has.
     /// </summary>
@@ -26,7 +27,8 @@ public abstract class EnemyCard : ModContent
     /// Base amount of shield.
     /// </summary>
     public virtual int Armor { get; } = 1;
-    #endregion
+
+    #endregion Stats
 
     /// <summary>
     /// Defines the size of the portrait

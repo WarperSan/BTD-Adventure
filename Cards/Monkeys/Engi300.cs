@@ -1,12 +1,11 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
 using Il2CppAssets.Scripts.Models.TowerSets;
-using System;
 
 namespace BTDAdventure.Cards.Monkeys;
 
 internal class Engi300 : HeroCard
 {
-    const int sentryCount = 4;
+    private const int sentryCount = 4;
 
     public override string DisplayName => "Sprockets";
     public override string Portrait => VanillaSprites.EngineerMonkey300;

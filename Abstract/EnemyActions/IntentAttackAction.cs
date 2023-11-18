@@ -5,5 +5,7 @@
 /// </summary>
 public abstract class IntentAttackAction : EnemyAction
 {
-    protected IntentAttackAction(string icon = DamageIcon) : base("IntentAttack", icon) { }
+    protected IntentAttackAction(string icon = DamageIcon) : base("IntentAttack", icon)
+    {
+    }
 }

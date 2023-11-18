@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BTDAdventure.Cards.Enemies;
 
-abstract class Red : RegularBloon
+internal abstract class Red : RegularBloon
 {
     public override int MaxHP => 32;
     public override string? Portrait => VanillaSprites.Red;

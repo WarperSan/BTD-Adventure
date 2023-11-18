@@ -1,21 +1,17 @@
 ﻿global using BTDAdventure.Abstract;
 global using BTDAdventure.Cards.EnemyCards;
 global using BTDAdventure.Cards.Monkeys;
-global using static BTDAdventure.Abstract.EnemyAction;
 global using static BTDAdventure.Managers.GameManager;
 global using static BTDAdventure.Managers.UIManager;
 global using IEnumerator = System.Collections.IEnumerator;
 
 using BTD_Mod_Helper;
-using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.ModOptions;
 using BTD_Mod_Helper.Extensions;
 using BTDAdventure;
 using BTDAdventure.Components;
 using BTDAdventure.Managers;
-using BTDAdventure.Ui;
 using Il2Cpp;
-using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using UnityEngine;
@@ -98,6 +94,7 @@ public class Main : BloonsTD6Mod
             OnPlaySocialUI();
         }
     }
+
     private void OnPlaySocialUI()
     {
         Scene playSocialScene = SceneManager.GetSceneByName("PlaySocialUI");
@@ -165,8 +162,44 @@ public class Main : BloonsTD6Mod
         _wasFromMe = true;
         UI.instance.LoadGame();
     }
+
     #region Settings
-    internal static ModSettingDouble EnemySpeed = new(0.25)
+
+    internal const string SETTING_ENEMY_SPEED = "EnemySpeed";
+    internal const string SETTING_SHOW_CARD_CURSOR = "ShowCardCursor";
+    internal const string SETTING_RANDOM_MAP_OFFSET = "RandomMapOffset";
+
+    internal static T? GetSettingValue<T>(string settingName, T? defaultValue = default)
+    {
+        ModSetting? modSetting = settingName switch
+        {
+            SETTING_ENEMY_SPEED => EnemySpeed,
+            SETTING_SHOW_CARD_CURSOR => ShowCardCursor,
+            SETTING_RANDOM_MAP_OFFSET => RandomMapOffset,
+            _ => null
+        };
+
+        if (modSetting == null)
+        {
+            Log($"No setting associated with the name \'{settingName}\'.");
+            return defaultValue;
+        }
+
+        object value = modSetting.GetValue();
+
+        try
+        {
+            return (T?)value;
+        }
+        catch (System.Exception e)
+        {
+            Log(e.Message);
+        }
+        return default;
+    }
+
+
+    private static readonly ModSettingDouble EnemySpeed = new(0.25)
     {
         min = 0,
         max = 2,
@@ -175,10 +208,17 @@ public class Main : BloonsTD6Mod
         description = "Determines the amount of seconds the enemy will have to wait before acting"
     };
 
-    internal static ModSettingBool ShowCardCursor = new(true)
+    private static readonly ModSettingBool ShowCardCursor = new(true)
     {
         displayName = "Card Cursor",
         description = "Determines if the card cursor should be showed or not"
     };
-    #endregion
+
+    private static readonly ModSettingBool RandomMapOffset = new(false)
+    {
+        displayName = "Random Map Offset",
+        description = "Determines if the nodes should have a random offset or not",
+    };
+
+    #endregion Settings
 }

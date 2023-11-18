@@ -1,7 +1,6 @@
 ﻿using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;
-using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,6 +21,7 @@ public abstract class Entity
     }
 
     #region Health
+
     /// <summary>
     /// Amount of HP remaining
     /// </summary>
@@ -73,10 +73,13 @@ public abstract class Entity
             OnPostAttacked?.Invoke(this, source);
         }
     }
+
     public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
 
     protected void RemoveHealth(int amount, Entity? source) => ModifyHealth(amount, true, source);
+
     protected void AddHealth(int amount, Entity? source) => ModifyHealth(amount, false, source);
+
     private void ModifyHealth(int amount, bool isRemoving, Entity? source)
     {
         OnHealthModify?.Invoke(ref amount);
@@ -84,7 +87,7 @@ public abstract class Entity
         if (isRemoving)
         {
             if (source != null)
-                SoundManager.PlaySound("swish_attack", SoundManager.GeneralGroup);
+                SoundManager.PlaySound(SoundManager.SOUND_ATTACK, SoundManager.GeneralGroup);
 
             Health -= amount;
         }
@@ -129,13 +132,19 @@ public abstract class Entity
     /// <summary>
     /// Called whenever the entity dies.
     /// </summary>
-    protected virtual void OnDeath() { }
+    protected virtual void OnDeath()
+    { }
 
-    protected virtual void SetUpHealthUI(GameObject root) { }
-    protected virtual void UpdateExtraHealthUI() { }
-    #endregion
+    protected virtual void SetUpHealthUI(GameObject root)
+    { }
+
+    protected virtual void UpdateExtraHealthUI()
+    { }
+
+    #endregion Health
 
     #region Shield
+
     private int Shield;
 
     protected int BaseShield = 1;
@@ -153,14 +162,16 @@ public abstract class Entity
         else
         {
             if (source != null)
-                SoundManager.PlaySound("swish_shield", SoundManager.GeneralGroup);
+                SoundManager.PlaySound(SoundManager.SOUND_SHIELD_GAINED, SoundManager.GeneralGroup);
 
             ModifyShield(damage.Amount, true, source);
         }
     }
 
     internal void AddShield(int amount, Entity? source) => ModifyShield(amount, false, source);
+
     internal void RemoveShield(int amount, Entity? source) => ModifyShield(amount, true, source);
+
     internal void RemoveShield(Entity? source) => RemoveShield(Shield, source);
 
     private void ModifyShield(int amount, bool isRemoving, Entity? source)
@@ -209,7 +220,8 @@ public abstract class Entity
 
     public int GetCurrentShield() => Shield;
 
-    protected virtual void SetUpShieldUI(GameObject root) { }
+    protected virtual void SetUpShieldUI(GameObject root)
+    { }
 
     internal int GetShield()
     {
@@ -229,11 +241,14 @@ public abstract class Entity
 
         return result;
     }
-    #endregion
 
-    protected virtual void SetUpExtraUI(GameObject root) { }
+    #endregion Shield
+
+    protected virtual void SetUpExtraUI(GameObject root)
+    { }
 
     #region Attack
+
     protected int? Damage;
 
     /// <returns>Amount of damage that an attack would deal</returns>
@@ -270,9 +285,11 @@ public abstract class Entity
     /// Attacks <paramref name="target"/> with the attack <paramref name="damage"/>.
     /// </summary>
     public virtual void AttackTarget(Damage damage, Entity? target) => target?.ReceiveDamage(this, damage);
-    #endregion
+
+    #endregion Attack
 
     #region Effects
+
     internal readonly List<Effect> _effects = new();
 
     protected GameObject? EffectHolder;
@@ -308,6 +325,7 @@ public abstract class Entity
     }
 
     #region Add
+
     private Effect GetOrCreateEffect<T>() where T : Effect
     {
         Effect? effect = GetEffect<T>();
@@ -362,9 +380,11 @@ public abstract class Entity
 
         return effect.LowestLevel;
     }
-    #endregion
+
+    #endregion Add
 
     #region Remove
+
     /// <summary>
     /// Removes the given effect
     /// </summary>
@@ -396,9 +416,11 @@ public abstract class Entity
         }
         return effectsRemoved.ToArray();
     }
-    #endregion
+
+    #endregion Remove
 
     #region Variants
+
     /// <summary>
     /// Removes the effect of the give type
     /// </summary>
@@ -418,8 +440,10 @@ public abstract class Entity
     public Effect[] RemoveAllEffects() => RemoveAllMatching(new Predicate<Effect>(_ => true));
 
     public int AddLevel<T>(int amount) where T : Effect => AddLevel(GetOrCreateEffect<T>(), amount);
+
     public int AddPermanentLevel<T>(int amount) where T : Effect => AddPermanentLevel(GetOrCreateEffect<T>(), amount);
-    #endregion
+
+    #endregion Variants
 
     internal void PlayEffectVisual(string assetName) => PlayEffectVisual(LoadAsset<GameObject>(assetName));
 
@@ -434,27 +458,40 @@ public abstract class Entity
         }
     }
 
-    protected virtual void SetUpEffectUI(GameObject root) { }
-    protected virtual void OnEffectUpdate(Effect effect) { }
-    #endregion
+    protected virtual void SetUpEffectUI(GameObject root)
+    { }
+
+    protected virtual void OnEffectUpdate(Effect effect)
+    { }
+
+    #endregion Effects
 
     #region Events
+
     private delegate void ShieldKeepEvent(ref bool keepShield);
+
     private event ShieldKeepEvent OnShieldKeep;
 
     private delegate void ShieldModifyEvent(ref int amount);
+
     private event ShieldModifyEvent OnShieldModify;
 
     private delegate void AttackedEvent(Entity source, Entity attacker);
+
     private event AttackedEvent OnPreAttacked;
+
     private event AttackedEvent OnPostAttacked;
 
     private delegate void DamageModifyEvent(Entity entity, ref Damage amount);
+
     private event DamageModifyEvent OnDamageModify;
 
     #region Turn Event
+
     private delegate void TurnEvent(Entity entity);
+
     private event TurnEvent OnPreTurn;
+
     internal void PreTurn()
     {
         this.ClearShield();
@@ -462,19 +499,27 @@ public abstract class Entity
     }
 
     private event TurnEvent OnPostTurn;
+
     internal void PostTurn() => OnPostTurn?.Invoke(this);
-    #endregion
+
+    #endregion Turn Event
 
     #region Action Event
+
     private delegate void ActionEvent(Entity source, HeroCard? card);
+
     private event ActionEvent OnPreAction;
+
     internal void PreAction(HeroCard? card = null) => OnPreAction?.Invoke(this, card);
 
     private event ActionEvent OnPostAction;
+
     internal void PostAction(HeroCard? card = null) => OnPostAction?.Invoke(this, card);
-    #endregion
+
+    #endregion Action Event
 
     private delegate void HealthModifyEvent(ref int amount);
+
     private event HealthModifyEvent OnHealthModify;
 
     private void Subscribe(Effect effect)
@@ -516,7 +561,8 @@ public abstract class Entity
         ChildrenSubscribe(effect);
     }
 
-    protected virtual void ChildrenSubscribe(Effect effect) { }
+    protected virtual void ChildrenSubscribe(Effect effect)
+    { }
 
     private void Unsubscribe(Effect effect)
     {
@@ -557,6 +603,8 @@ public abstract class Entity
         ChildrenUnsubscribe(effect);
     }
 
-    protected virtual void ChildrenUnsubscribe(Effect effect) { }
-    #endregion
+    protected virtual void ChildrenUnsubscribe(Effect effect)
+    { }
+
+    #endregion Events
 }

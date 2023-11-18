@@ -15,6 +15,7 @@ public abstract class EnemyAction : ModContent
     }
 
     public abstract void OnAction(EnemyEntity source, PlayerEntity player);
+
     public abstract string? GetText(EnemyEntity source);
 
     public override void Register()

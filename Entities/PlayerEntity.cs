@@ -21,6 +21,7 @@ public class PlayerEntity : Entity
     }
 
     #region Health
+
     protected override bool ScaleUpMaxHP => true;
 
     protected override void SetUpHealthUI(GameObject root)
@@ -32,9 +33,11 @@ public class PlayerEntity : Entity
     }
 
     protected override void OnDeath() => GameManager.Instance.OnDefeat();
-    #endregion
+
+    #endregion Health
 
     #region Shield
+
     protected override void SetUpShieldUI(GameObject root)
     {
         const string shieldPath = UIManager.ValuesPath + "/Health/Shield";
@@ -44,9 +47,11 @@ public class PlayerEntity : Entity
         if (ShieldImg != null)
             ShieldText = InitializeText(ShieldImg.transform.Find("Text"), TopValueFontSize / 2);
     }
-    #endregion
+
+    #endregion Shield
 
     #region Coins
+
     internal uint coins;
 
     private NK_TextMeshProUGUI? CashText;
@@ -58,9 +63,11 @@ public class PlayerEntity : Entity
     }
 
     private void UpdateCoinsUI() => CashText?.UpdateText(coins);
-    #endregion
+
+    #endregion Coins
 
     #region Bloonjamins
+
     internal uint bjms;
 
     private NK_TextMeshProUGUI? BloonjaminsText;
@@ -72,9 +79,11 @@ public class PlayerEntity : Entity
     }
 
     private void UpdateBloonjaminsUI() => BloonjaminsText?.UpdateText(bjms);
-    #endregion
+
+    #endregion Bloonjamins
 
     #region Mana
+
     public uint Mana { get; internal set; }
     internal uint MaxMana = 3;
 
@@ -85,7 +94,9 @@ public class PlayerEntity : Entity
         OnManaGain?.Invoke(ref amount);
         SetMana(Mana + amount);
     }
+
     internal void RemoveMana(uint amount) => SetMana(Mana - amount);
+
     internal void ResetMana()
     {
         uint amount = MaxMana;
@@ -97,7 +108,6 @@ public class PlayerEntity : Entity
 
     private void SetMana(uint amount)
     {
-
 #if DEBUG
         Log($"Setting mana from {Mana} to {amount}.");
 #endif
@@ -111,9 +121,11 @@ public class PlayerEntity : Entity
             return;
         }*/
     }
-    #endregion
+
+    #endregion Mana
 
     #region Piles
+
     private NK_TextMeshProUGUI? DrawPileText;
     private NK_TextMeshProUGUI? DiscardPileText;
 
@@ -122,16 +134,23 @@ public class PlayerEntity : Entity
         DrawPileText?.UpdateText(cardManager.DrawPileCount);
         DiscardPileText?.UpdateText(cardManager.DiscardPileCount);
     }
-    #endregion
+
+    #endregion Piles
 
     #region Damage
+
     internal void SetDamage(int amount) => Damage = amount;
-    #endregion
+
+    #endregion Damage
 
     #region Effect
+
     #region Card Block
+
     private delegate void CardPlayEvent(ref bool blocked, HeroCard card);
+
     private event CardPlayEvent OnCardPlay;
+
     internal bool BlockCardOnPlay(HeroCard card)
     {
         bool isBlocked = false;
@@ -140,18 +159,23 @@ public class PlayerEntity : Entity
     }
 
     private event CardPlayEvent OnCardDraw;
+
     internal bool BlockCardOnDraw(HeroCard card)
     {
         bool isBlocked = false;
         OnCardDraw?.Invoke(ref isBlocked, card);
         return isBlocked;
     }
-    #endregion
+
+    #endregion Card Block
 
     #region Mana Gain
+
     private delegate void ManaGainEvent(ref uint amount);
+
     private event ManaGainEvent OnManaGain;
-    #endregion
+
+    #endregion Mana Gain
 
     protected override void SetUpEffectUI(GameObject root)
     {
@@ -185,9 +209,11 @@ public class PlayerEntity : Entity
             OnManaGain -= manaGainEffect.OnManaGained;
         }
     }
-    #endregion
+
+    #endregion Effect
 
     #region UI
+
     protected override void SetUpExtraUI(GameObject root)
     {
         // Cash (coins)
@@ -222,9 +248,12 @@ public class PlayerEntity : Entity
         UpdateBloonjaminsUI();
         UpdateShieldText();
     }
-    #endregion
+
+    #endregion UI
 
     #region Rogue Class
+
     internal RogueClass RogueClass;
-    #endregion
+
+    #endregion Rogue Class
 }

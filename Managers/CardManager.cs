@@ -6,27 +6,54 @@ namespace BTDAdventure.Managers;
 internal class CardManager
 {
     #region Piles
+
+    /// <summary>
+    /// List of the cards that the player has
+    /// </summary>
     private readonly List<HeroCard> _globalCardList;
+
+    /// <summary>
+    /// List of the cards that are in the exile pile
+    /// </summary>
     private readonly List<HeroCard> _exileCardList = new();
+
+    /// <summary>
+    /// List of the cards that are in the discard pile
+    /// </summary>
     private readonly List<HeroCard> _discardCardList = new();
+
+    /// <summary>
+    /// List of the cards that are in the draw pile
+    /// </summary>
     private List<HeroCard> _drawCardList = new();
 
     public int DiscardPileCount => _discardCardList.Count;
     public int DrawPileCount => _drawCardList.Count;
 
+    /// <summary>
+    /// Cards that make the player's hand
+    /// </summary>
     private readonly HeroCard?[] _hand = new HeroCard?[MaxPlayerCardCount];
-    #endregion
+
+    #endregion Piles
 
     #region Player
+
     private int SelectedCardIndex = -1;
+
+    /// <returns>Selected card</returns>
     internal HeroCard? GetCard() => SelectedCardIndex == -1 ? null : _hand[SelectedCardIndex];
+
     internal void SelectCard(int index)
     {
+        // Deselect the current selected card
         GameManager.Instance.UiManager?.SetCardCursorState(SelectedCardIndex, false);
 
+        // Update selected card
         SelectedCardIndex = index;
 
-        if ((bool)Main.ShowCardCursor.GetValue())
+        // Select the current selected card
+        if (Main.GetSettingValue(Main.SETTING_SHOW_CARD_CURSOR, true))
             GameManager.Instance.UiManager?.SetCardCursorState(SelectedCardIndex, true);
     }
 
@@ -64,12 +91,20 @@ internal class CardManager
 
         SelectCard(-1);
     }
-    #endregion
+
+    #endregion Player
 
     #region Counters
+
     private readonly Dictionary<string, int> CardCounters = new();
 
-    internal int GetCounter(string name) => CardCounters.ContainsKey(name) ? CardCounters[name] : 0;
+    /// <returns>Value of the counter with the name <paramref name="name"/></returns>
+    internal int GetCounter(string name) => CardCounters.TryGetValue(name, out int value) ? value : 0;
+
+    /// <summary>
+    /// Adds <paramref name="value"/> to the value of the counter with the name <paramref name="name"/>
+    /// </summary>
+    /// <returns>New value</returns>
     internal int AddCounter(string name, int value)
     {
         int v = GetCounter(name) + value;
@@ -77,8 +112,12 @@ internal class CardManager
         return v;
     }
 
+    /// <summary>
+    /// Clears the registered counters
+    /// </summary>
     internal void ClearCounters() => CardCounters.Clear();
-    #endregion
+
+    #endregion Counters
 
     internal void FillHand(int amount, int position = -1, bool swingAnimation = false)
     {
@@ -140,23 +179,13 @@ internal class CardManager
             GameManager.Instance.Player?.UpdatePiles(this);
     }
 
-    /// <summary>
-    /// Adds a card to the local deck
-    /// </summary>
-    /// <param name="card"></param>
-    internal void AddCard(HeroCard card)
+    internal void AddCard(HeroCard card, bool isPermanent)
     {
-        _drawCardList.Add(card);
-    }
+        if (isPermanent)
+            _globalCardList.Add(card);
 
-    /// <summary>
-    /// Adds a card to the deck
-    /// </summary>
-    /// <param name="card"></param>
-    internal void AddCardPermanent(HeroCard card)
-    {
-        _globalCardList.Add(card);
-        AddCard(card);
+        // Add card to the local piel
+        _drawCardList.Add(card);
     }
 
     internal void ResetPiles()
@@ -166,10 +195,10 @@ internal class CardManager
 #endif
 
         EmptyHand(false);
-        _discardCardList.Clear();
-        _exileCardList.Clear();
+        _discardCardList.Clear(); // Clear discard pile
+        _exileCardList.Clear(); // Clear exile pile
 
-        _drawCardList = new(_globalCardList);
+        _drawCardList = new(_globalCardList); // Set local deck to global deck
     }
 
     private void FillDrawBack()
@@ -185,7 +214,7 @@ internal class CardManager
             (_drawCardList[0], _drawCardList[rdmIndex]) = (_drawCardList[rdmIndex], _drawCardList[i]);
         }
 
-        SoundManager.PlaySound("shuffle", SoundManager.GeneralGroup);
+        SoundManager.PlaySound(SoundManager.SOUND_SHUFFLE, SoundManager.GeneralGroup);
     }
 
     internal CardManager(RogueClass rogueClass)

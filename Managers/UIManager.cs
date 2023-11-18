@@ -18,6 +18,7 @@ namespace BTDAdventure.Managers;
 internal class UIManager
 {
     #region Constants
+
     public const string ValuesPath = "Overlay/TopPanel/Values";
     public const string DamageIcon = "Ui[BTDAdventure-intent_damage]";
     public const string DoubleDamageIcon = "Ui[BTDAdventure-intent_damage_double]";
@@ -35,7 +36,8 @@ internal class UIManager
     public const string OverchargedIcon = "Ui[BTDAdventure-icon_overcharged]";
 
     public const float TopValueFontSize = 125;
-    #endregion
+
+    #endregion Constants
 
     private Transform? EnemyCardsHolder;
     private Transform? PlayerCardsHolder;
@@ -129,11 +131,14 @@ internal class UIManager
     }
 
     #region GameUI
+
     internal GameObject? GameUI;
     private MenuManager? menuManager;
-    #endregion
+
+    #endregion GameUI
 
     #region Victory UI
+
     internal GameObject? VictoryUI;
     internal Button? VictoryBtn;
 
@@ -147,9 +152,11 @@ internal class UIManager
             font: Fonts.Btd6FontTitle,
             initialText: "VICTORY");
     }
-    #endregion
+
+    #endregion Victory UI
 
     #region Reward UI
+
     internal GameObject? RewardUI;
     internal Transform? RewardHolder;
 
@@ -203,9 +210,11 @@ internal class UIManager
         if (reward.Value.HeroCard != null)
             CreatePopupCard(reward.Value.HeroCard, true);
     }
-    #endregion
+
+    #endregion Reward UI
 
     #region Player Cards
+
     internal void InitPlayerCards()
     {
         if (GameManager.Instance.PlayerCardPrefab == null)
@@ -224,7 +233,6 @@ internal class UIManager
                 manaSpacer.AddComponent<RectTransform>().sizeDelta = new Vector2(100, 100);
                 manaSpacer.transform.parent = PlayerCardsHolder;
             }
-
 
             GameObject newCard = GameObject.Instantiate(GameManager.Instance.PlayerCardPrefab, PlayerCardsHolder);
 
@@ -300,9 +308,11 @@ internal class UIManager
         if (index < PlayerCards.Length && index >= 0)
             PlayerCards[index]?.transform?.Find("SelectCard")?.gameObject?.SetActive(state);
     }
-    #endregion
+
+    #endregion Player Cards
 
     #region Enemy
+
     private GameObject? EnemyCardPrefab;
 
     private readonly GameObject?[] EnemiesObject = new GameObject?[MaxEnemiesCount];
@@ -337,6 +347,7 @@ internal class UIManager
             throw;
         }
     }
+
     internal void SetEnemyState(bool state, int position) => EnemiesObject[position]?.SetActive(state);
 
     internal void KillEnemy(int position, EnemyEntity? entity) => MelonLoader.MelonCoroutines.Start(EnemyDies(position, entity));
@@ -354,10 +365,13 @@ internal class UIManager
         }
         return EnemyCardPrefab;
     }
-    #endregion
+
+    #endregion Enemy
 
     #region Map
+
     internal MapGenerator? MapGenerator;
+
     private void SetUpMapUI(Transform mainUI)
     {
         MapGenerator = mainUI.Find("MapGenerator").gameObject.AddComponent<MapGenerator>();
@@ -368,10 +382,13 @@ internal class UIManager
         MapGenerator.GenerateMap(UnityEngine.Random.Range(0, 100));
         MapGenerator.ProgressLayer();
     }
-    #endregion
+
+    #endregion Map
 
     #region Death
+
     private GameObject? DeathUI;
+
     private void SetUpDeathUI(Transform mainUI)
     {
         DeathUI = mainUI.Find("DeathUI")?.gameObject;
@@ -402,9 +419,11 @@ internal class UIManager
     }
 
     internal void ShowDeathUI() => DeathUI?.SetActive(true);
-    #endregion
+
+    #endregion Death
 
     #region Static
+
     private static void SetLockState(bool state, GameObject card)
     {
         card.GetComponent<Button>().enabled = !state;
@@ -429,9 +448,11 @@ internal class UIManager
         Log($"InGameUI is now {(isActive ? "active" : "inactive")}.");
 #endif
     }
-    #endregion
+
+    #endregion Static
 
     #region Coroutines
+
     /// <summary>
     /// Causes the loading screen to appear
     /// </summary>
@@ -467,7 +488,7 @@ internal class UIManager
         LoadingScreen?.SetActive(false);
     }
 
-    static IEnumerator SwingCard(GameObject card, Action? afterLeftSwing)
+    private static IEnumerator SwingCard(GameObject card, Action? afterLeftSwing)
     {
         Animator animator = card.GetComponent<Animator>();
 
@@ -485,7 +506,7 @@ internal class UIManager
         yield return new WaitForSeconds(0.1667f); // Wait for animation
     }
 
-    IEnumerator EnemyDies(int position, EnemyEntity? entity)
+    private IEnumerator EnemyDies(int position, EnemyEntity? entity)
     {
         GameObject? enemy = EnemiesObject[position];
 
@@ -508,5 +529,6 @@ internal class UIManager
         else
             yield return new WaitForEndOfFrame();
     }
-    #endregion
+
+    #endregion Coroutines
 }

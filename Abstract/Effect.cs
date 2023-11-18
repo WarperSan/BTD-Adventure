@@ -1,6 +1,5 @@
 ﻿using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Cards;
 using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;
@@ -41,6 +40,7 @@ public abstract class Effect
 
     // Permanent lvl
     public int LowestLevel { get; set; }
+
     protected virtual bool ShowLevel => true;
 
     protected virtual int GetReduceAmount(Entity origin) => 1;
@@ -102,37 +102,37 @@ public abstract class Effect
 }
 
 ///
-/// PreTurn: 
+/// PreTurn:
 ///     OnEffect(Entity)
-///     
-/// PreAction: 
+///
+/// PreAction:
 ///     OnAction(Entity, HeroCard?)
 ///     OnCardPlay(PlayerEntity, HeroCard)
 ///     OnEnemyPlay(EnemyEntity)
 ///     OnEntityPlay(Entity)
-///     
+///
 /// PostAction:
 ///     OnAction(Entity, HeroCard?)
 ///     OnCardPlay(PlayerEntity, HeroCard)
 ///     OnEnemyPlay(EnemyEntity)
 ///     OnEntityPlay(Entity)
-///     
+///
 /// Attack:
 ///     ModifyDamage(Entity, Damage)
-///     
+///
 /// Shield:
 ///     ModifyAmount(int)
-///     
+///
 /// Attacked:
 ///     OnEffect(Entity, Entity)
-///     
+///
 /// Health:
 ///     ModifyAmount(int)
-///     
+///
 /// PostTurn:
 ///     OnEffect(Entity)
-///     
-/// 
+///
+///
 /// Action:
 /// - Turn (Pre/Post)
 /// - Action (Pre/Post)
@@ -144,12 +144,12 @@ public abstract class Effect
 
 public interface IEffect
 {
-
 }
 
 public interface ITurnEffect : IEffect
 {
     public void OnPreTurn(Entity entity) { }
+
     public void OnPostTurn(Entity entity) { }
 }
 
@@ -157,7 +157,7 @@ public interface IActionEffect : IEffect
 {
     /// <summary>
     /// Determines if the effect should call the method specific of the entity type or the generic one.
-    /// If true, the effect will either call <see cref="OnCardPlay(PlayerEntity, HeroCard)"/> or 
+    /// If true, the effect will either call <see cref="OnCardPlay(PlayerEntity, HeroCard)"/> or
     /// <see cref="OnEntityPlay(Entity)"/>; Otherwise, <see cref="OnEntityPlay(Entity)"/> will be called.
     /// </summary>
     bool CheckEntityType { get; }
@@ -186,7 +186,9 @@ public interface IActionEffect : IEffect
     }
 
     protected void OnCardPlay(PlayerEntity player, HeroCard cardPlayed) { }
+
     protected void OnEnemyPlay(EnemyEntity enemy) { }
+
     protected void OnEntityPlay(Entity entity) { }
 }
 
@@ -225,8 +227,8 @@ public interface IShieldEffect : IEffect
 public interface IAttackedEffect : IEffect
 {
     public void OnPreAttacked(Entity source, Entity attacker) { }
-    public void OnPostAttacked(Entity source, Entity attacker);
 
+    public void OnPostAttacked(Entity source, Entity attacker);
 }
 
 public interface IHealthEffect : IEffect
@@ -242,18 +244,20 @@ public interface IManaGainEffect : IEffect
 public interface IBlockCardEffect : IEffect
 {
     public virtual void OnPlay(ref bool blocked, HeroCard card) { }
+
     public virtual void OnDraw(ref bool blocked, HeroCard card) { }
 }
 
-class OverchagedEffect : Effect, IManaGainEffect
+internal class OverchagedEffect : Effect, IManaGainEffect
 {
     protected override string Name => "Overcharged";
     protected override string? Image => UIManager.OverchargedIcon;
 
-    public void OnManaGained(ref uint amount) { amount = 0; }
+    public void OnManaGained(ref uint amount)
+    { amount = 0; }
 }
 
-class NoPrimaryEffect : Effect, IBlockCardEffect
+internal class NoPrimaryEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Primary";
     protected override string? Image => VanillaSprites.PrimaryMonkeyIcon;
@@ -262,7 +266,7 @@ class NoPrimaryEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Primary;
 }
 
-class NoMagicEffect : Effect, IBlockCardEffect
+internal class NoMagicEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Magic";
     protected override string? Image => throw new NotImplementedException();
@@ -271,7 +275,7 @@ class NoMagicEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Magic;
 }
 
-class NoMilitaryEffect : Effect, IBlockCardEffect
+internal class NoMilitaryEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Military";
     protected override string? Image => throw new NotImplementedException();
@@ -280,7 +284,7 @@ class NoMilitaryEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Military;
 }
 
-class NoSupportEffect : Effect, IBlockCardEffect
+internal class NoSupportEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Support";
     protected override string? Image => throw new NotImplementedException();
@@ -289,7 +293,7 @@ class NoSupportEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Support;
 }
 
-class NoHeroEffect : Effect, IBlockCardEffect
+internal class NoHeroEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Hero";
     protected override string? Image => throw new NotImplementedException();
@@ -298,7 +302,7 @@ class NoHeroEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero;
 }
 
-class NoItemsEffect : Effect, IBlockCardEffect
+internal class NoItemsEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Items";
     protected override string? Image => throw new NotImplementedException();
@@ -307,7 +311,7 @@ class NoItemsEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Items;
 }
 
-class NoParagoncEffect : Effect, IBlockCardEffect
+internal class NoParagoncEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "No Paragon";
     protected override string? Image => throw new NotImplementedException();
@@ -316,7 +320,7 @@ class NoParagoncEffect : Effect, IBlockCardEffect
     public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Paragon;
 }
 
-class BlockPrimaryEffect : Effect, IBlockCardEffect
+internal class BlockPrimaryEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Primary";
     protected override string? Image => VanillaSprites.PrimaryKnowledgeBtn;
@@ -324,7 +328,7 @@ class BlockPrimaryEffect : Effect, IBlockCardEffect
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Primary;
 }
 
-class BlockMagicEffect : Effect, IBlockCardEffect
+internal class BlockMagicEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Magic";
     protected override string? Image => throw new NotImplementedException();
@@ -332,7 +336,7 @@ class BlockMagicEffect : Effect, IBlockCardEffect
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Magic;
 }
 
-class BlockMilitaryEffect : Effect, IBlockCardEffect
+internal class BlockMilitaryEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Military";
     protected override string? Image => throw new NotImplementedException();
@@ -340,7 +344,7 @@ class BlockMilitaryEffect : Effect, IBlockCardEffect
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Military;
 }
 
-class BlockSupportEffect : Effect, IBlockCardEffect
+internal class BlockSupportEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Support";
     protected override string? Image => throw new NotImplementedException();
@@ -348,14 +352,15 @@ class BlockSupportEffect : Effect, IBlockCardEffect
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Support;
 }
 
-class BlockHeroEffect : Effect, IBlockCardEffect
+internal class BlockHeroEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Hero";
     protected override string? Image => throw new NotImplementedException();
 
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero;
 }
-class BlockParagonEffect : Effect, IBlockCardEffect
+
+internal class BlockParagonEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Paragon";
     protected override string? Image => throw new NotImplementedException();
@@ -363,7 +368,7 @@ class BlockParagonEffect : Effect, IBlockCardEffect
     void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Paragon;
 }
 
-class BlockItemsEffect : Effect, IBlockCardEffect
+internal class BlockItemsEffect : Effect, IBlockCardEffect
 {
     protected override string Name => "Block Items";
     protected override string? Image => throw new NotImplementedException();

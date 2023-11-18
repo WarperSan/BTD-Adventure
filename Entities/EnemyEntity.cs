@@ -1,5 +1,4 @@
-﻿
-using BTD_Mod_Helper.Extensions;
+﻿using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Abstract.EnemyActions;
 using BTDAdventure.Managers;
 using Il2Cpp;
@@ -81,6 +80,7 @@ public class EnemyEntity : Entity
     public uint GetCoinsGiven() => Model?.CoinsGiven ?? 0;
 
     #region Health
+
     protected Slider? HealthSlider;
 
     protected override void SetUpHealthUI(GameObject root)
@@ -115,9 +115,11 @@ public class EnemyEntity : Entity
         Instance.KillEnemy(Position); // they kill themselves :(
         this.RemoveAllEffects();
     }
-    #endregion
+
+    #endregion Health
 
     #region Shield
+
     protected override void SetUpShieldUI(GameObject root)
     {
         ShieldImg = root.transform.Find("Shield")?.gameObject;
@@ -132,9 +134,11 @@ public class EnemyEntity : Entity
             ShieldText = textT.GetComponent<NK_TextMeshProUGUI>() ?? InitializeText(textT, 25);
         }
     }
-    #endregion
+
+    #endregion Shield
 
     #region Intent
+
     private HorizontalLayoutGroup? _intentContainer;
     private Image? _intentIcon;
     private NK_TextMeshProUGUI? _intentText;
@@ -207,7 +211,7 @@ public class EnemyEntity : Entity
         if (Model != null && Instance.Player != null)
         {
             if (NextIntent is IntentEffectAction)
-                SoundManager.PlaySound("debuff", SoundManager.GeneralGroup);
+                SoundManager.PlaySound(SoundManager.SOUND_DEBUFF_APPLIED, SoundManager.GeneralGroup);
 
             NextIntent.OnAction(this, Instance.Player);
 
@@ -227,9 +231,11 @@ public class EnemyEntity : Entity
         }
         return 0;
     }
-    #endregion
+
+    #endregion Intent
 
     #region Portrait
+
     private Image? EnemyPortrait;
 
     protected void SetPortrait(string? value = null)
@@ -242,9 +248,11 @@ public class EnemyEntity : Entity
 
         EnemyPortrait.SetSprite(value ?? Model?.Portrait);
     }
-    #endregion
+
+    #endregion Portrait
 
     #region Effects
+
     protected override void SetUpEffectUI(GameObject root)
     {
         EffectHolder = root.transform.Find("Status")?.gameObject;
@@ -255,5 +263,6 @@ public class EnemyEntity : Entity
     {
         UpdateIntent();
     }
-    #endregion
+
+    #endregion Effects
 }

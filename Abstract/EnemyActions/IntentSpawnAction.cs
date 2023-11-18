@@ -5,7 +5,9 @@ namespace BTDAdventure.Abstract.EnemyActions;
 
 public abstract class IntentSpawnAction : IntentAttackAction
 {
-    protected IntentSpawnAction() : base(UIManager.SpawnIcon) { }
+    protected IntentSpawnAction() : base(UIManager.SpawnIcon)
+    {
+    }
 
     public override string? GetText(EnemyEntity source) => null;
 }

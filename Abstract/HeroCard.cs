@@ -1,13 +1,8 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
-using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Effects;
 using BTDAdventure.Managers;
-using Il2CppAssets.Scripts.Models.Towers;
 using Il2CppAssets.Scripts.Models.TowerSets;
-using Il2CppAssets.Scripts.Unity;
-using Il2CppMono.Math.Prime;
-using System.Linq;
 using Color = System.Drawing.Color;
 
 namespace BTDAdventure.Cards.Monkeys;
@@ -38,6 +33,7 @@ public abstract class HeroCard : ModContent
     public virtual bool CanBeReward => true;
 
     #region Background
+
     public string? GetBackgroundGUID() => Type switch
     {
         TowerSet.Primary => VanillaSprites.TowerContainerPrimary,
@@ -51,14 +47,19 @@ public abstract class HeroCard : ModContent
     };
 
     protected virtual string? GetCustomBackgroundGUID() => null;
-    #endregion
+
+    #endregion Background
 
     internal abstract void PlayCard();
 
     #region Attack
+
     protected static void AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
+
     protected static void AttackEnemy(Damage damage) => GameManager.Instance.AttackEnemy(damage);
+
     protected static void AttackAllEnemies(int amount) => AttackAllEnemies(new Damage(amount));
+
     protected static void AttackAllEnemies(Damage damage) => GameManager.Instance.AttackAllEnemies(damage);
 
     protected string CalculateDamage(int amount, bool changeColor = true)
@@ -80,35 +81,50 @@ public abstract class HeroCard : ModContent
     }
 
     protected virtual Color? GetPlusAttackColor(int difference) => null;
+
     protected virtual Color? GetMinusAttackColor(int difference) => null;
-    #endregion
+
+    #endregion Attack
 
     #region Effect
+
     protected static void AddLevelPlayer<T>(int amount) where T : Effect => GameManager.Instance.AddLevelPlayer<T>(amount);
+
     protected static void AddLevelEnemy<T>(int amount) where T : Effect => GameManager.Instance.AddLevelEnemy<T>(amount);
+
     protected static void AddLevelEnemyAll<T>(int amount) where T : Effect => GameManager.Instance.AddLevelToAll<T>(amount);
 
     protected static void AddPermanentLevelPlayer<T>(int amount) where T : Effect => GameManager.Instance.AddPermanentLevelPlayer<T>(amount);
 
     protected static int GetEffectPlayer<T>() where T : Effect => GameManager.Instance.GetEffectLevelPlayer<T>();
-    #endregion
+
+    #endregion Effect
 
     #region Shield
+
     protected static void AddShield(int amount) => GameManager.Instance.Player?.AddShield(amount, null);
-    #endregion
+
+    #endregion Shield
 
     #region Cards
-    protected static void AddCard(HeroCard card) => GameManager.Instance.AddCard(card);
-    #endregion
+
+    protected static void AddCard(HeroCard card) => GameManager.Instance.AddCard(card);
+
+    #endregion Cards
 
     #region Mana
+
     protected static void AddMana(uint amount) => GameManager.Instance.GainMana(amount);
-    #endregion
+
+    #endregion Mana
 
     #region Counter
+
     protected static int GetCounter(string name) => GameManager.Instance.GetCounter(name);
+
     protected static int AddCounter(string name, int value) => GameManager.Instance.AddCounter(name, value);
-    #endregion
+
+    #endregion Counter
 
     public override void Register()
     {
@@ -151,7 +167,7 @@ public abstract class HeroCard : ModContent
 
 //        // Upgrade name
 //        int maxValue = TowerModel.tiers.Max();
-        
+
 //        _displayName = TowerModel.GetUpgrade(TowerModel.tiers.IndexOf(maxValue), maxValue).LocsKey;
 //    }
 //}

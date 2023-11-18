@@ -9,6 +9,7 @@
         <Optimize>False</Optimize>
         <DebugType>embedded</DebugType>
         <BaseOutputPath>C:\Users\Phillipe\OneDrive - Collège Lionel-Groulx\Documents\GitHub\BTD-Adventure\bin</BaseOutputPath>
+        <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
       <LangVersion>preview</LangVersion>
@@ -44,6 +45,22 @@
     </ItemGroup>
 
     <Import Project="..\btd6.targets" />
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Notes\brainstorming1.jpg" />
+      <EmbeddedResource Remove="Notes\brainstorming2.jpg" />
+      <EmbeddedResource Remove="Notes\cardsFinal.jpg" />
+      <EmbeddedResource Remove="Notes\effectTheory.jpg" />
+      <EmbeddedResource Remove="Notes\entity.jpg" />
+      <EmbeddedResource Remove="Notes\pathIdeas.jpg" />
+      <EmbeddedResource Remove="Notes\pathIdeas2.jpg" />
+      <EmbeddedResource Remove="Notes\pathIdeas3.jpg" />
+      <EmbeddedResource Remove="Notes\shop.jpg" />
+      <EmbeddedResource Remove="Notes\structure.jpg" />
+      <EmbeddedResource Remove="Notes\theory.jpg" />
+      <EmbeddedResource Remove="Notes\uiDesigns.jpg" />
+      <EmbeddedResource Remove="Notes\uiDesigns2.jpg" />
+    </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Update="Images\Icons\intent_damage.png">

@@ -1,9 +1,10 @@
-﻿using BTDAdventure.Entities;
-using BTDAdventure.Managers;
+﻿using BTDAdventure.Managers;
 
 namespace BTDAdventure.Abstract.EnemyActions;
 
 public abstract class IntentEffectAction : IntentAttackAction
 {
-    protected IntentEffectAction() : base(UIManager.CurseIcon) { }
+    protected IntentEffectAction() : base(UIManager.CurseIcon)
+    {
+    }
 }
