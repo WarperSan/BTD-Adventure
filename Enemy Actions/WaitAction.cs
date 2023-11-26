@@ -1,22 +1,10 @@
-﻿using BTDAdventure.Entities;
-using BTDAdventure.Managers;
+﻿using BTDAdventure.Managers;
 
 namespace BTDAdventure.Enemy_Actions;
 
 internal class WaitAction : EnemyAction
 {
-    public WaitAction() : base("IntentWait", WaitIcon)
-    {
-    }
-
-    public override string? GetText(EnemyEntity source) => null;
-
-    public override void OnAction(EnemyEntity source, PlayerEntity player)
-    {
-        SoundManager.PlaySound(SoundManager.SOUND_WAIT_TICK, SoundManager.GeneralGroup);
-
-#if DEBUG
-        Log("Wait action activate ...");
-#endif
-    }
+    public override string? Icon => UIManager.ICON_WAIT;
+    public override string? AnimationName => ANIMATION_WAIT;
+    public override string? SoundName => SoundManager.SOUND_WAIT_TICK;
 }

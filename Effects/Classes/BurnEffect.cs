@@ -1,11 +1,12 @@
-﻿using BTDAdventure.Managers;
+﻿using BTDAdventure.Effects.Interfaces;
+using BTDAdventure.Managers;
 
-namespace BTDAdventure.Effects;
+namespace BTDAdventure.Effects.Classes;
 
 internal class BurnEffect : Effect, ITurnEffect
 {
     protected override string Name => "Burn";
-    protected override string? Image => UIManager.BurnIcon;
+    protected override string? Image => UIManager.ICON_BURN;
 
     void ITurnEffect.OnPostTurn(Entity entity)
     {

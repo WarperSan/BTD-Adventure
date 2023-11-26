@@ -10,79 +10,104 @@ using UnityEngine.UI;
 
 namespace BTDAdventure.Managers;
 
-internal class RewardManager(UIManager? uIManager)
+internal abstract class RewardManager
 {
-    private readonly UIManager? UiManager = uIManager;
-    internal List<GameObject?> _rewardsObj = new();
+    #region Constants
 
-    private int rewardIndex = -1;
+    public const int REWARD_AMOUNT_CARDS = 3;
+    public const int REWARD_AMOUNT_BLOONJAMINS = 2;
 
-    internal void OpenRewardUI()
+    #endregion Constants
+
+#nullable disable
+    private static string _encounterType;
+#nullable restore
+
+    internal static List<GameObject?> _rewardsObj = new();
+
+    private static int rewardIndex = -1;
+
+    internal static void OpenRewardUI(string encounterType)
     {
-        // Removes the possibility of nulls
-        if (LogNull(UiManager, nameof(UiManager)))
-            return;
+        _encounterType = encounterType;
 
-        // Removes the possibility of nulls
-        if (LogNull(UiManager?.RewardUI, nameof(UiManager.RewardUI)))
-            return;
-
-        UiManager?.UseLoading(postLoad: new Action(() =>
+        UIManager.UseLoading(postLoad: new Action(() =>
         {
-            UiManager?.GameUI?.SetActive(false);
-            UiManager?.VictoryUI?.SetActive(false);
+            UIManager.SetGameUIActive(false);
+            UIManager.SetVictoryUIActive(false);
 
             // Generate rewards
-            _rewards = GenerateRewards();
+            _rewards = GenerateRewards(REWARD_AMOUNT_CARDS, REWARD_AMOUNT_BLOONJAMINS);
 
             for (int i = 0; i < _rewards.Length; i++)
-            {
                 SetUpReward(i, _rewards[i]);
-            }
 
-            UiManager?.RewardUI?.SetActive(true);
+            UIManager.SetRewardUIActive(true);
             GameManager.Instance.Player?.RemoveAllEffects();
         }));
     }
 
     // 3 cards + 1 bjms reward
-    private Reward?[]? _rewards;
+    private static Reward?[]? _rewards;
 
-    private static Reward?[] GenerateRewards()
+    private static Reward?[] GenerateRewards(int cardRewards, int gemsRewards)
     {
-        int amountOfRewards = 4;
-
-        Reward?[] rewards = new Reward?[amountOfRewards];
+        Reward?[] rewards = new Reward?[cardRewards + gemsRewards];
 
         // Randomize the rewards
         var allCards = ModContent.GetContent<HeroCard>().Where(x => x.CanBeReward).ToList();
 
-        for (int i = 0; i < 3; i++)
+        FilterCards(ref allCards);
+
+        for (int i = 0; i < cardRewards; i++)
         {
             int rdmIndex = UnityEngine.Random.Range(0, allCards.Count);
-            (allCards[rdmIndex], allCards[^1]) = (allCards[^1], allCards[rdmIndex]);
             rewards[i] = new Reward()
             {
-                HeroCard = allCards[^1]
+                HeroCard = allCards[rdmIndex]
             };
 
+            if (allCards.Count + i < cardRewards)
+                continue;
+
+            (allCards[rdmIndex], allCards[^1]) = (allCards[^1], allCards[rdmIndex]);
             allCards.RemoveAt(allCards.Count - 1);
         }
 
-        rewards[^1] = new Reward()
+        for (int i = 0; i < gemsRewards; i++)
         {
-            Bloonjamins = 3
-        };
+            rewards[cardRewards + i] = new Reward()
+            {
+                Bloonjamins = 3
+            };
+        }
 
         return rewards;
     }
 
-    private void SetUpReward(int index, Reward? reward)
+    /// <summary>
+    /// Removes every card that is not allowed in the current world.
+    /// </summary>
+    private static void FilterCards(ref List<HeroCard> cards)
+    {
+        World world = GameManager.Instance.GetWorld();
+
+        for (int i = cards.Count - 1; i >= 0; i--)
+        {
+            if (!cards[i].CanBeReward || world.RewardCardAllowed(cards[i], _encounterType))
+                continue;
+
+            (cards[^1], cards[i]) = (cards[i], cards[^1]);
+            cards.RemoveAt(cards.Count - 1);
+        }
+    }
+
+    private static void SetUpReward(int index, Reward? reward)
     {
         if (!reward.HasValue)
             return;
 
-        GameObject? r = GameObject.Instantiate(GameManager.Instance.RewardCardPrefab, UiManager?.RewardHolder);
+        GameObject? r = UIManager.GetRewardCard();
         r?.transform.Find("Button")?.GetComponent<Button>().onClick.AddListener(() =>
         {
             if (rewardIndex != -1)
@@ -100,7 +125,10 @@ internal class RewardManager(UIManager? uIManager)
         {
             rwdBtn?.onClick.AddListener(() =>
             {
-                UIManager.CreatePopupReward(reward);
+                if (reward.Value.HeroCard == null)
+                    return;
+
+                UIManager.CreatePopupCard(reward.Value.HeroCard, true);
             });
         }
 
@@ -115,13 +143,9 @@ internal class RewardManager(UIManager? uIManager)
         r.transform.Find("Banner/TextHolder/Text").GetComponent<NK_TextMeshProUGUI>().text = title;
     }
 
-    private void CloseRewardUI()
+    private static void CloseRewardUI()
     {
-        // Removes the possibility of nulls
-        if (LogNull(UiManager, nameof(UiManager)))
-            return;
-
-        UiManager?.UseLoading(postLoad: new Action(() =>
+        UIManager.UseLoading(postLoad: new Action(() =>
         {
             if (_rewards != null)
             {
@@ -133,58 +157,61 @@ internal class RewardManager(UIManager? uIManager)
 
             // Delete all rewards
             foreach (var item in _rewardsObj) { GameObject.Destroy(item); }
-            _rewardsObj.Clear();
 
-            UiManager.RewardUI?.SetActive(false);
+            // Reset
+            _rewardsObj.Clear();
+            rewardIndex = -1;
+
+            // Disable UI
+            UIManager.SetRewardUIActive(false);
 
             // Open map
-            UiManager.MapGenerator?.ProgressLayer();
-            UiManager.MapGenerator?.MapObjectsParent?.gameObject.SetActive(true);
+            UIManager.AdvanceLayer();
         }));
     }
+}
 
-    internal struct Reward
+public struct Reward
+{
+    // Rewards can be a card, bloonjamins, nothing (or cash)
+    public HeroCard? HeroCard;
+
+    public uint? Bloonjamins;
+    public uint? Cash;
+
+    internal readonly void CollectReward()
     {
-        // Rewards can be a card, bloonjamins, nothing (or cash)
-        public HeroCard? HeroCard;
-
-        public uint? Bloonjamins;
-        public uint? Cash;
-
-        internal readonly void CollectReward()
-        {
-            if (Bloonjamins != null)
-                GameManager.Instance.Player?.AddBloonjamins(Bloonjamins.Value);
-            else if (Cash != null)
-                GameManager.Instance.Player?.AddCoins(Cash.Value);
-            else if (HeroCard != null)
-                GameManager.Instance.AddCardPermanent(HeroCard);
+        if (Bloonjamins != null)
+            GameManager.Instance.Player?.AddBloonjamins(Bloonjamins.Value);
+        else if (Cash != null)
+            GameManager.Instance.Player?.AddCoins(Cash.Value);
+        else if (HeroCard != null)
+            GameManager.Instance.AddCardPermanent(HeroCard);
 #if DEBUG
-            else
-                Log("A reward with no valid content was claimed.");
+        else
+            Log("A reward with no valid content was claimed.");
 #endif
-        }
+    }
 
-        internal readonly void SetUpReward(out string? portrait, out string? title)
+    internal readonly void SetUpReward(out string? portrait, out string? title)
+    {
+        portrait = null;
+        title = null;
+
+        if (Bloonjamins != null)
         {
-            portrait = null;
-            title = null;
-
-            if (Bloonjamins != null)
-            {
-                portrait = VanillaSprites.BundledBloonjaminsIcon;
-                title = Bloonjamins + " Bloonjamins";
-            }
-            else if (Cash != null)
-            {
-                portrait = VanillaSprites.CoinIcon;
-                title = Cash + " Coins";
-            }
-            else if (HeroCard != null)
-            {
-                portrait = HeroCard.Portrait;
-                title = HeroCard.DisplayName;
-            }
+            portrait = VanillaSprites.BundledBloonjaminsIcon;
+            title = Bloonjamins + " Bloonjamins";
+        }
+        else if (Cash != null)
+        {
+            portrait = VanillaSprites.CoinIcon;
+            title = Cash + " Coins";
+        }
+        else if (HeroCard != null)
+        {
+            portrait = HeroCard.Portrait;
+            title = HeroCard.DisplayName;
         }
     }
 }

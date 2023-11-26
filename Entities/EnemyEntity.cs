@@ -1,5 +1,4 @@
 ﻿using BTD_Mod_Helper.Extensions;
-using BTDAdventure.Abstract.EnemyActions;
 using BTDAdventure.Managers;
 using Il2Cpp;
 using System;
@@ -12,7 +11,7 @@ public class EnemyEntity : Entity
 {
     private readonly EnemyCard Model;
 
-    public EnemyEntity(GameObject? enemyObject, int position, EnemyCard model) : base(enemyObject)
+    public EnemyEntity(GameObject enemyObject, int position, EnemyCard model) : base(enemyObject)
     {
         Model = model;
 
@@ -21,8 +20,147 @@ public class EnemyEntity : Entity
         if (enemyObject != null)
             SetUpToModel(enemyObject);
     }
+    
+    //public string innate;
+    //public int innateValue;
+    //public bool isOriginal;
 
-    protected override void SetUpExtraUI(GameObject root)
+    private readonly int Position;
+
+    #region Reward
+
+    /// <returns>Reward earned when this entity is killed.</returns>
+    public virtual Reward GetReward() => Model.GetReward();
+
+    #endregion
+
+    #region Intent
+
+    private HorizontalLayoutGroup? _intentContainer;
+    private Image? _intentIcon;
+    private NK_TextMeshProUGUI? _intentText;
+    private Animator? _intentAnimator;
+
+    private EnemyAction? NextIntent;
+
+    /// <summary>
+    /// Advances to the next intent.
+    /// </summary>
+    internal void AdvanceIntent()
+    {
+        SetIntent(Model.GetNextAction(GameManager.Instance.TurnCount, this));
+        UpdateIntent();
+    }
+
+    /// <summary>
+    /// Sets the next intent to <paramref name="enemyAction"/>
+    /// </summary>
+    internal void SetIntent(EnemyAction enemyAction) => NextIntent = enemyAction;
+
+    /// <summary>
+    /// Called to set up UI references.
+    /// </summary>
+    protected void SetUpIntentUI(GameObject root)
+    {
+        Transform? intentContainerT = root.transform.Find("Intent");
+
+        if (LogNull(intentContainerT, "Intent Transform"))
+            return;
+
+        intentContainerT.SafeGetComponent(out _intentContainer);
+        intentContainerT.Find("IconHolder/Icon").SafeGetComponent(out _intentIcon);
+        intentContainerT.Find("Text").SafeGetComponent(out _intentText);
+        root.transform.SafeGetComponent(out _intentAnimator);
+    }
+
+    private void UpdateIntent()
+    {
+        int containerLeftPadding = 30;
+
+        if (Model == null)
+            return;
+
+#nullable disable
+        if (!LogNull(_intentText, "Intent Text"))
+        {
+            string text = NextIntent.GetText(this);
+            _intentText.text = text;
+            _intentText.gameObject.SetActive(!string.IsNullOrEmpty(text));
+
+            if (!_intentText.gameObject.activeInHierarchy)
+                containerLeftPadding = 0;
+        }
+
+        if (!LogNull(_intentContainer, "Intent Container"))
+        {
+            _intentContainer.padding.left = containerLeftPadding;
+        }
+
+
+        if (!LogNull(_intentIcon, "Intent Icon"))
+        {
+            _intentIcon.SetSprite(NextIntent.Icon);
+        }
+#nullable restore
+    }
+
+    /// <returns>Length of the played animation.</returns>
+    internal float ExecuteIntent()
+    {
+        float animationLength = 0;
+
+        if (Model == null || GameManager.Instance.Player == null || NextIntent == null)
+            return animationLength;
+
+        NextIntent.OnAction(this, Instance.Player);
+
+        // Skip animation if wanted
+        if (Settings.GetSettingValue(Settings.SETTING_SKIP_ENEMY_ANIMATION, false))
+            return animationLength;
+
+        // Play sound if definedd
+        if (NextIntent.SoundName != null)
+            SoundManager.PlaySound(NextIntent.SoundName, SoundManager.GeneralGroup);
+
+        string? animationName = NextIntent.AnimationName;
+
+        if (string.IsNullOrEmpty(animationName) || _intentAnimator == null)
+            return animationLength;
+
+        var clips = _intentAnimator.runtimeAnimatorController.animationClips;
+        foreach (var item in clips)
+        {
+            if (item.name != animationName)
+                continue;
+
+            animationLength = item.length;
+            break;
+        }
+
+        _intentAnimator.Play(animationName, 0);
+
+        return animationLength;
+    }
+
+    #endregion Intent
+
+    #region Portrait
+
+    private Image? EnemyPortrait;
+
+    private void SetPortrait(string? value = null)
+    {
+        if (LogNull(EnemyPortrait, nameof(EnemyPortrait)))
+            return;
+
+        EnemyPortrait.SetSprite(value ?? Model?.Portrait);
+    }
+
+    #endregion Portrait
+
+    #region Other Setups
+
+    protected override sealed void SetUpExtraUI(GameObject root)
     {
         // Portrait
         EnemyPortrait = root.transform.Find("Display/Portrait")?.GetComponent<Image>();
@@ -71,43 +209,38 @@ public class EnemyEntity : Entity
         // ---
     }
 
-    //public string innate;
-    //public int innateValue;
-    //public bool isOriginal;
+    #endregion Other Setups
 
-    private readonly int Position;
-
-    public uint GetCoinsGiven() => Model?.CoinsGiven ?? 0;
-
+    // --- Entity ---
     #region Health
 
     protected Slider? HealthSlider;
 
-    protected override void SetUpHealthUI(GameObject root)
+    protected override sealed void SetUpHealthUI(GameObject root)
     {
         Transform? hpSliderT = root.transform.Find("HP/HealthBar");
 
-        if (hpSliderT != null)
+        if (!LogNull(hpSliderT, "Health Slider"))
+        {
             HealthSlider = hpSliderT.GetComponent<Slider>();
-        else
-            Log("Health Slider was not found.");
+        }
 
         Transform? hpTextT = root.transform.Find("HP/TextHolder/Text");
 
-        if (hpTextT != null)
+        if (!LogNull(hpTextT, "Health Text"))
+        {
             HealthText = hpTextT.gameObject.GetComponent<NK_TextMeshProUGUI>();
-        else
-            Log("Health Text was not found.");
+        }
     }
 
     protected override void UpdateExtraHealthUI()
     {
-        if (HealthSlider != null)
-        {
-            HealthSlider.maxValue = MaxHealth;
-            //HealthSlider.minValue = Math.Min(HealthSlider.minValue, Health);
-            HealthSlider.value = Math.Max(0, Health);
-        }
+        if (HealthSlider == null)
+            return;
+
+        HealthSlider.maxValue = MaxHealth;
+        //HealthSlider.minValue = Math.Min(HealthSlider.minValue, Health);
+        HealthSlider.value = Math.Max(0, Health);
     }
 
     protected override void OnDeath()
@@ -120,149 +253,35 @@ public class EnemyEntity : Entity
 
     #region Shield
 
-    protected override void SetUpShieldUI(GameObject root)
+    protected override sealed void SetUpShieldUI(GameObject root)
     {
         ShieldImg = root.transform.Find("Shield")?.gameObject;
 
         // Setting the sprite in the prefab doesn't work
-        ShieldImg?.GetComponent<Image>().SetSprite(UIManager.ShieldIcon);
+        ShieldImg?.GetComponent<Image>().SetSprite(UIManager.ICON_SHIELD);
 
-        if (ShieldImg != null)
-        {
-            Transform textT = ShieldImg.transform.Find("Text");
+        if (LogNull(ShieldImg, "Shield Image"))
+            return;
 
-            ShieldText = textT.GetComponent<NK_TextMeshProUGUI>() ?? InitializeText(textT, 25);
-        }
+#nullable disable
+        Transform textT = ShieldImg.transform.Find("Text");
+#nullable restore
+
+        ShieldText = textT.GetComponent<NK_TextMeshProUGUI>() ?? UIManager.InitializeText(textT, 25);
     }
 
     #endregion Shield
 
-    #region Intent
-
-    private HorizontalLayoutGroup? _intentContainer;
-    private Image? _intentIcon;
-    private NK_TextMeshProUGUI? _intentText;
-    private Animator? _intentAnimator;
-
-    private EnemyAction NextIntent;
-
-    /// <summary>
-    /// Moves to the next intent
-    /// </summary>
-    internal void MoveIntent()
-    {
-        SetIntent(Model.GetNextAction(GameManager.Instance.TurnCount, this));
-        UpdateIntent();
-    }
-
-    /// <summary>
-    /// Sets the next intent to <paramref name="enemyAction"/>
-    /// </summary>
-    internal void SetIntent(EnemyAction enemyAction) => NextIntent = enemyAction;
-
-    protected virtual void SetUpIntentUI(GameObject root)
-    {
-        Transform? intentContainerT = root.transform.Find("Intent");
-
-        if (intentContainerT == null)
-        {
-            Log("Intent Transform was not found.");
-            return;
-        }
-
-        intentContainerT.SafeGetComponent(out _intentContainer);
-        intentContainerT.Find("IconHolder/Icon").SafeGetComponent(out _intentIcon);
-        intentContainerT.Find("Text").SafeGetComponent(out _intentText);
-        root.transform.SafeGetComponent(out _intentAnimator);
-    }
-
-    private void UpdateIntent()
-    {
-        int containerLeftPadding = 30;
-
-        if (Model == null)
-            return;
-
-        if (_intentText != null)
-        {
-            string? text = NextIntent.GetText(this);
-            _intentText.text = text;
-            _intentText.gameObject.SetActive(!string.IsNullOrEmpty(text));
-
-            if (!_intentText.gameObject.activeInHierarchy)
-                containerLeftPadding = 0;
-        }
-        else
-            Log("Intent Text was not found.");
-
-        if (_intentContainer != null)
-            _intentContainer.padding.left = containerLeftPadding;
-        else
-            Log("Intent container was not found.");
-
-        if (_intentIcon != null)
-            _intentIcon.SetSprite(NextIntent.Icon);
-        else
-            Log("Intent Icon was not found.");
-    }
-
-    internal float ExecuteIntent()
-    {
-        if (Model != null && Instance.Player != null)
-        {
-            if (NextIntent is IntentEffectAction)
-                SoundManager.PlaySound(SoundManager.SOUND_DEBUFF_APPLIED, SoundManager.GeneralGroup);
-
-            NextIntent.OnAction(this, Instance.Player);
-
-            string? animationName = NextIntent.AnimationName;
-
-            if (!string.IsNullOrEmpty(animationName) && _intentAnimator != null)
-            {
-                _intentAnimator.Play(animationName, 0);
-
-                var clips = _intentAnimator.runtimeAnimatorController.animationClips;
-                foreach (var item in clips)
-                {
-                    if (item.name == animationName)
-                        return item.length;
-                }
-            }
-        }
-        return 0;
-    }
-
-    #endregion Intent
-
-    #region Portrait
-
-    private Image? EnemyPortrait;
-
-    protected void SetPortrait(string? value = null)
-    {
-        if (EnemyPortrait == null)
-        {
-            Log($"Tried to access {nameof(EnemyPortrait)}, but it was not defined.");
-            return;
-        }
-
-        EnemyPortrait.SetSprite(value ?? Model?.Portrait);
-    }
-
-    #endregion Portrait
-
     #region Effects
 
-    protected override void SetUpEffectUI(GameObject root)
+    protected override sealed void SetUpEffectUI(GameObject root)
     {
         EffectHolder = root.transform.Find("Status")?.gameObject;
         EffectVisual = root.transform.Find("EffectVisual");
     }
 
-    protected override void OnEffectUpdate(Effect effect)
-    {
-        UpdateIntent();
-    }
+    protected override void OnEffectUpdate(Effect effect) => UpdateIntent();
 
     #endregion Effects
+
 }

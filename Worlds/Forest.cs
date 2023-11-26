@@ -26,14 +26,10 @@ internal class Forest : World
         NodeTypes.Clear();
 
         for (int i = 0; i < 53; ++i) // 70%
-        {
             NodeTypes.Add(MapGenerator.NODE_TYPE_NORMAL);
-        }
 
-        for (int i = 0; i < 22; i++) // 30%
-        {
+        for (int i = 0; i < 22; ++i) // 30%
             NodeTypes.Add(MapGenerator.NODE_TYPE_ELITE);
-        }
     }
 
     public override string GetNodeType(int x, int y)
@@ -48,35 +44,15 @@ internal class Forest : World
 
 internal class Forest_RedGroup1 : NormalEnemyGroup<Forest>
 {
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Red1(), new Red2(), new Red1() };
+    public override EnemyCard[] Enemies => new EnemyCard[] { new Red1(), new Red1() };
 }
 
 internal class Forest_RedGroup2 : NormalEnemyGroup<Forest>
 {
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Red2(), new Red2() };
-}
-
-internal class Forest_RedGroup3 : NormalEnemyGroup<Forest>
-{
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Red3() };
+    public override EnemyCard[] Enemies => new EnemyCard[] { new Red2(), new Red3(), new Red2() };
 }
 
 internal class Forest_BlueGroup1 : NormalEnemyGroup<Forest>
 {
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Blue1() };
-}
-
-internal class Forest_BlueGroup2 : NormalEnemyGroup<Forest>
-{
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Red1(), new Blue2(), new Red1() };
-}
-
-internal class Forest_BlueGroup3 : NormalEnemyGroup<Forest>
-{
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Blue3() };
-}
-
-internal class Forest_GreenGroup1 : NormalEnemyGroup<Forest>
-{
-    public override EnemyCard[] Enemies => new EnemyCard[] { new Green1() };
+    public override EnemyCard[] Enemies => new EnemyCard[] { new Blue1(), new Blue2() };
 }

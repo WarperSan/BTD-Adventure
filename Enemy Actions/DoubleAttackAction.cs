@@ -1,18 +1,13 @@
-﻿using BTDAdventure.Abstract.EnemyActions;
-using BTDAdventure.Entities;
+﻿using BTDAdventure.Managers;
 
 namespace BTDAdventure.Enemy_Actions;
 
-internal class DoubleAttackAction : IntentAttackAction
+internal class DoubleAttackAction : AttackAction, IAttackEffect
 {
-    public DoubleAttackAction() : base(DoubleDamageIcon)
-    {
-    }
+    public override string? Icon => UIManager.ICON_DOUBLE_DAMAGE;
 
-    public override string? GetText(EnemyEntity source) => (source.GetAttack() * 2).ToString();
-
-    public override void OnAction(EnemyEntity source, PlayerEntity player)
+    public void ModifyDamage(Entity entity, ref Damage damage)
     {
-        source.AttackTarget(source.GetAttack() * 2, player);
+        damage.Amount *= 2;
     }
 }

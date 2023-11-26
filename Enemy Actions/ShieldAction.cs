@@ -5,16 +5,16 @@ namespace BTDAdventure.Enemy_Actions;
 
 internal class ShieldAction : EnemyAction
 {
-    public ShieldAction() : base("IntentWait", ShieldIcon)
-    {
-    }
+    public override string? Icon => UIManager.ICON_SHIELD;
+    public override string? AnimationName => ANIMATION_SHIELD;
 
-    public override string? GetText(EnemyEntity source) => source.GetShield().ToString();
+    public override string? SoundName => SoundManager.SOUND_SHIELD;
+
+    public override string? GetText(EnemyEntity source) => source.GetNextShield().ToString();
 
     public override void OnAction(EnemyEntity source, PlayerEntity player)
     {
-        SoundManager.PlaySound(SoundManager.SOUND_SHIELD, SoundManager.GeneralGroup);
-
-        source.AddShield(source.GetShield(), source);
+        source.PlayEffectVisual("ShieldGainVisual");
+        source.AddShield(source.GetNextShield(), source);
     }
 }

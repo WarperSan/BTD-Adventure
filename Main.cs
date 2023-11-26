@@ -1,9 +1,8 @@
 ﻿global using BTDAdventure.Abstract;
 global using BTDAdventure.Cards.EnemyCards;
 global using BTDAdventure.Cards.Monkeys;
-global using static BTDAdventure.Managers.GameManager;
-global using static BTDAdventure.Managers.UIManager;
 global using IEnumerator = System.Collections.IEnumerator;
+global using static BTDAdventure.Managers.GameManager;
 
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.ModOptions;
@@ -30,7 +29,6 @@ public class Main : BloonsTD6Mod
 
     public override void OnApplicationStart()
     {
-        GameManager.Instance.Initialize();
         InjectTypes();
     }
 
@@ -38,7 +36,6 @@ public class Main : BloonsTD6Mod
     {
         Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<ShaderEngine_CameraBehavior>();
         Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapNode>();
-        //Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapGenerator.Path>();
         Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<MapGenerator>();
         Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<DeleteObject>();
     }
@@ -90,9 +87,9 @@ public class Main : BloonsTD6Mod
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
         if (sceneName == "PlaySocialUI")
-        {
             OnPlaySocialUI();
-        }
+        else if (sceneName == "MainMenuUi")
+            UIManager.ReleaseResources();
     }
 
     private void OnPlaySocialUI()
@@ -137,15 +134,15 @@ public class Main : BloonsTD6Mod
 
         GameObject btdAdBtn = GameObject.Instantiate(buttonOG, buttonHolder);
         btdAdBtn.name = "BTD Adventure BTN";
-        btdAdBtn.GetComponentInChildren<NK_TextMeshProUGUI>().localizeKey = "KYS";
+        btdAdBtn.GetComponentInChildren<NK_TextMeshProUGUI>().localizeKey = "BTD Adventure"; // No more kys :(
         //btdAdBtn.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LoadingCloudPuff);
 
         // Change Icon
 
         btdAdBtn.GetComponent<Button>().AddOnClick(new Function(() =>
         {
-            LoadGame("Sanctuary");
-            //ModGameMenu.Open<StartUpUi>();
+            //LoadGame("Sanctuary");
+            BTD_Mod_Helper.Api.ModGameMenu.Open<Ui.StartUpUi>();
         }));
     }
 
@@ -162,63 +159,4 @@ public class Main : BloonsTD6Mod
         _wasFromMe = true;
         UI.instance.LoadGame();
     }
-
-    #region Settings
-
-    internal const string SETTING_ENEMY_SPEED = "EnemySpeed";
-    internal const string SETTING_SHOW_CARD_CURSOR = "ShowCardCursor";
-    internal const string SETTING_RANDOM_MAP_OFFSET = "RandomMapOffset";
-
-    internal static T? GetSettingValue<T>(string settingName, T? defaultValue = default)
-    {
-        ModSetting? modSetting = settingName switch
-        {
-            SETTING_ENEMY_SPEED => EnemySpeed,
-            SETTING_SHOW_CARD_CURSOR => ShowCardCursor,
-            SETTING_RANDOM_MAP_OFFSET => RandomMapOffset,
-            _ => null
-        };
-
-        if (modSetting == null)
-        {
-            Log($"No setting associated with the name \'{settingName}\'.");
-            return defaultValue;
-        }
-
-        object value = modSetting.GetValue();
-
-        try
-        {
-            return (T?)value;
-        }
-        catch (System.Exception e)
-        {
-            Log(e.Message);
-        }
-        return default;
-    }
-
-
-    private static readonly ModSettingDouble EnemySpeed = new(0.25)
-    {
-        min = 0,
-        max = 2,
-        slider = true,
-        displayName = "Enemy Delay",
-        description = "Determines the amount of seconds the enemy will have to wait before acting"
-    };
-
-    private static readonly ModSettingBool ShowCardCursor = new(true)
-    {
-        displayName = "Card Cursor",
-        description = "Determines if the card cursor should be showed or not"
-    };
-
-    private static readonly ModSettingBool RandomMapOffset = new(false)
-    {
-        displayName = "Random Map Offset",
-        description = "Determines if the nodes should have a random offset or not",
-    };
-
-    #endregion Settings
 }

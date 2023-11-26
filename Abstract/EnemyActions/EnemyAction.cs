@@ -5,23 +5,42 @@ namespace BTDAdventure.Abstract;
 
 public abstract class EnemyAction : ModContent
 {
-    public string? Icon { get; }
-    public string? AnimationName { get; }
+    #region Constants
 
-    public EnemyAction(string? animationName, string? icon = null)
-    {
-        this.Icon = icon;
-        this.AnimationName = animationName;
-    }
+    public const string ANIMATION_WAIT = "IntentWait";
+    public const string ANIMATION_SHIELD = ANIMATION_WAIT;
+    public const string ANIMATION_ATTACK = "IntentAttack";
 
-    public abstract void OnAction(EnemyEntity source, PlayerEntity player);
+    #endregion Constants
 
-    public abstract string? GetText(EnemyEntity source);
+    /// <summary>
+    /// GUID of the image to use when this action is used.
+    /// </summary>
+    public virtual string? Icon => null;
 
-    public override void Register()
+    /// <summary>
+    /// Name of the animation to play whenever this action is executed.
+    /// </summary>
+    public virtual string? AnimationName => null;
+
+    /// <summary>
+    /// Name of the audio to play whenever this action is executed.
+    /// </summary>
+    public virtual string? SoundName => null;
+
+    /// <summary>
+    /// Called whenever this action is executed.
+    /// </summary>
+    public virtual void OnAction(EnemyEntity source, PlayerEntity player) { }
+
+    /// <returns>Text to display when this action is used.</returns>
+    public virtual string? GetText(EnemyEntity source) => null;
+
+    /// <inheritdoc/>
+    public override sealed void Register()
     {
 #if DEBUG
-        Log($"{Name} registered");
+        Log($"{Name} registered.");
 #endif
     }
 }

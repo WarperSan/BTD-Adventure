@@ -4,7 +4,6 @@ namespace BTDAdventure.Abstract.EnemyActions;
 
 public abstract class IntentEffectAction : IntentAttackAction
 {
-    protected IntentEffectAction() : base(UIManager.CurseIcon)
-    {
-    }
+    public override string? Icon => UIManager.ICON_CURSE;
+    public override string? SoundName => SoundManager.SOUND_DEBUFF_APPLIED;
 }

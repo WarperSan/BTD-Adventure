@@ -31,7 +31,7 @@ public class SoundManager
     public static void PlaySound<T>(string name, string groupId, float volume = 1, bool loop = false)
         where T : BloonsMod
     {
-        if (volume <= 0f)
+        if (volume <= 0f || !Settings.GetSettingValue(Settings.SETTING_PLAY_SOUNDS, false))
             return;
 
         var sound = LoadAsset<AudioClip>(name);

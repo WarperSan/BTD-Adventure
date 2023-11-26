@@ -1,11 +1,11 @@
 ﻿using BTDAdventure.Managers;
 
-namespace BTDAdventure.Effects;
+namespace BTDAdventure.Effects.Classes;
 
 internal class PoisonEffect : Effect, ITurnEffect
 {
     protected override string Name => "Poison";
-    protected override string? Image => UIManager.PoisonIcon;
+    protected override string? Image => UIManager.ICON_POISON;
 
     void ITurnEffect.OnPreTurn(Entity entity)
     {

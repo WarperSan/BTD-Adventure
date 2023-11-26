@@ -1,11 +1,11 @@
 ﻿using BTDAdventure.Managers;
 
-namespace BTDAdventure.Effects;
+namespace BTDAdventure.Effects.Classes;
 
-internal class WoundExtremeEffect : Effect, IActionEffect
+internal class WoundEffect : Effect, IActionEffect
 {
-    protected override string Name => "Extreme Wound";
-    protected override string? Image => UIManager.WoundExtremeIcon;
+    protected override string Name => "Wound";
+    protected override string? Image => UIManager.ICON_WOUND;
 
     public bool CheckEntityType => false;
 
@@ -13,7 +13,7 @@ internal class WoundExtremeEffect : Effect, IActionEffect
     {
         entity.ReceiveDamage(null, new Damage()
         {
-            Amount = Level,
+            Amount = 1,
             IgnoresShield = true,
         });
     }

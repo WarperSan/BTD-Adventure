@@ -5,12 +5,16 @@ namespace BTDAdventure.Abstract;
 public abstract class EnemyGroup : ModContent
 {
     /// <summary>
-    /// List of enemies in the group
+    /// List of enemies in the group.
     /// </summary>
+    /// <remarks>
+    /// The group cannot exceed the limit of enemies. If it does, 
+    /// the group will only be composed of the first enemies until the limit.
+    /// </remarks>
     public abstract EnemyCard[] Enemies { get; }
 
     /// <summary>
-    /// Type of the group
+    /// Type of the group.
     /// </summary>
     public abstract string Type { get; }
 

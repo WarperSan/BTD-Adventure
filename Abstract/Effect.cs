@@ -1,5 +1,4 @@
-﻿using BTD_Mod_Helper.Api.Enums;
-using BTD_Mod_Helper.Extensions;
+﻿using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;
@@ -15,6 +14,8 @@ namespace BTDAdventure.Abstract;
 /// burn (post turn) and weakness (attack)
 ///
 
+//public abstract uint LiveCost { get; }
+
 /// <summary>
 /// Defines what any effect needs.
 /// </summary>
@@ -23,7 +24,7 @@ public abstract class Effect
     private GameObject? root;
 
     /// <summary>
-    /// Name of the effect
+    /// Name of the effect.
     /// </summary>
     protected abstract string Name { get; }
 
@@ -32,22 +33,39 @@ public abstract class Effect
     /// </summary>
     public virtual string DisplayName => Name + " " + Level;
 
-    //public abstract uint LiveCost { get; }
-    //public String id;
-    protected abstract string? Image { get; }
+    /// <summary>
+    /// Image used to display the effect.
+    /// </summary>
+    protected virtual string? Image => null;
 
-    public int Level { get; set; }
+    #region Levels
 
-    // Permanent lvl
+    /// <summary>
+    /// Current level of this effect.
+    /// </summary>
+    public int Level { get; internal set; }
+
+    /// <summary>
+    /// Current permanent level of this effect.
+    /// </summary>
     public int LowestLevel { get; set; }
 
+    /// <summary>
+    /// Determines if the mod should show the effect's level or not.
+    /// </summary>
     protected virtual bool ShowLevel => true;
 
     protected virtual int GetReduceAmount(Entity origin) => 1;
 
-    //public String text;
+    #endregion
 
+    #region Level UI
+    
     private NK_TextMeshProUGUI? LevelText;
+
+    public void UpdateLevelText() => LevelText?.UpdateText(Level);
+
+    #endregion
 
     internal void SetUpUI(Entity entity, GameObject? @object)
     {
@@ -58,19 +76,17 @@ public abstract class Effect
 
         root.GetComponent<Image>().SetSprite(Image); // Set icon
 
-        if (ShowLevel)
+        if (!ShowLevel)
+            return;
+
+        LevelText = UIManager.InitializeText(root.transform.Find("Text"), entity is PlayerEntity ? 50 : 25, Il2CppTMPro.TextAlignmentOptions.BottomRight);
+
+        if (LevelText != null)
         {
-            LevelText = UIManager.InitializeText(root.transform.Find("Text"), entity is PlayerEntity ? 50 : 25, Il2CppTMPro.TextAlignmentOptions.BottomRight);
-
-            if (LevelText != null)
-            {
-                LevelText.textWrappingMode = Il2CppTMPro.TextWrappingModes.NoWrap;
-            }
-            // textWrappingMode
+            LevelText.textWrappingMode = Il2CppTMPro.TextWrappingModes.NoWrap;
         }
+        // textWrappingMode
     }
-
-    public void UpdateLevelText() => LevelText?.UpdateText(Level);
 
     internal void UpdateEffect(Entity origin)
     {
@@ -90,7 +106,7 @@ public abstract class Effect
     }
 
     /// <summary>
-    /// Called whenever the effect gets removed
+    /// Called whenever the effect gets removed.
     /// </summary>
     internal void RemoveEffect()
     {
@@ -142,236 +158,4 @@ public abstract class Effect
 /// - Health (Pre)
 ///
 
-public interface IEffect
-{
-}
-
-public interface ITurnEffect : IEffect
-{
-    public void OnPreTurn(Entity entity) { }
-
-    public void OnPostTurn(Entity entity) { }
-}
-
-public interface IActionEffect : IEffect
-{
-    /// <summary>
-    /// Determines if the effect should call the method specific of the entity type or the generic one.
-    /// If true, the effect will either call <see cref="OnCardPlay(PlayerEntity, HeroCard)"/> or
-    /// <see cref="OnEntityPlay(Entity)"/>; Otherwise, <see cref="OnEntityPlay(Entity)"/> will be called.
-    /// </summary>
-    bool CheckEntityType { get; }
-
-    sealed void OnAction(Entity source, HeroCard? card)
-    {
-        if (CheckEntityType)
-        {
-            if (source is PlayerEntity player)
-            {
-                if (card != null)
-                {
-                    OnCardPlay(player, card);
-                    return;
-                }
-            }
-            else if (source is EnemyEntity enemy)
-            {
-                OnEnemyPlay(enemy);
-                return;
-            }
-            else
-                Log($"The entity {source} is neither a {typeof(PlayerEntity).Name}, nor an {typeof(EnemyEntity).Name}.");
-        }
-        OnEntityPlay(source);
-    }
-
-    protected void OnCardPlay(PlayerEntity player, HeroCard cardPlayed) { }
-
-    protected void OnEnemyPlay(EnemyEntity enemy) { }
-
-    protected void OnEntityPlay(Entity entity) { }
-}
-
-/// <summary>
-/// Defines all the effects that modify the damage output
-/// </summary>
-public interface IAttackEffect : IEffect
-{
-    /// <summary>
-    /// Called whenever a damage amount is dealt
-    /// </summary>
-    /// <param name="entity">Entity that has the effect active</param>
-    /// <param name="damage">Attack to modify</param>
-    /// <returns>Modified attack</returns>
-    public abstract void ModifyDamage(Entity entity, ref Damage damage);
-}
-
-/// <summary>
-/// Defines all the effects taht modify the shield output
-/// </summary>
-public interface IShieldEffect : IEffect
-{
-    /// <summary>
-    /// Called whenever a shield is gained
-    /// </summary>
-    /// <param name="amount">Amount of shield that was going to be gained</param>
-    /// <returns>Amount of shield that will be gained</returns>
-    public abstract void ModifyAmount(ref int amount);
-
-    /// <summary>
-    /// Determines if the effect causes the entity to keep it's shield
-    /// </summary>
-    public void ShouldKeepShield(ref bool keepShield) => keepShield |= false;
-}
-
-public interface IAttackedEffect : IEffect
-{
-    public void OnPreAttacked(Entity source, Entity attacker) { }
-
-    public void OnPostAttacked(Entity source, Entity attacker);
-}
-
-public interface IHealthEffect : IEffect
-{
-    public void ModifyAmount(ref int amount);
-}
-
-public interface IManaGainEffect : IEffect
-{
-    public void OnManaGained(ref uint amount);
-}
-
-public interface IBlockCardEffect : IEffect
-{
-    public virtual void OnPlay(ref bool blocked, HeroCard card) { }
-
-    public virtual void OnDraw(ref bool blocked, HeroCard card) { }
-}
-
-internal class OverchagedEffect : Effect, IManaGainEffect
-{
-    protected override string Name => "Overcharged";
-    protected override string? Image => UIManager.OverchargedIcon;
-
-    public void OnManaGained(ref uint amount)
-    { amount = 0; }
-}
-
-internal class NoPrimaryEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Primary";
-    protected override string? Image => VanillaSprites.PrimaryMonkeyIcon;
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Primary;
-}
-
-internal class NoMagicEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Magic";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Magic;
-}
-
-internal class NoMilitaryEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Military";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Military;
-}
-
-internal class NoSupportEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Support";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Support;
-}
-
-internal class NoHeroEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Hero";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero;
-}
-
-internal class NoItemsEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Items";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Items;
-}
-
-internal class NoParagoncEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "No Paragon";
-    protected override string? Image => throw new NotImplementedException();
-    protected override bool ShowLevel => false;
-
-    public void OnPlay(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Paragon;
-}
-
-internal class BlockPrimaryEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Primary";
-    protected override string? Image => VanillaSprites.PrimaryKnowledgeBtn;
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Primary;
-}
-
-internal class BlockMagicEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Magic";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Magic;
-}
-
-internal class BlockMilitaryEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Military";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Military;
-}
-
-internal class BlockSupportEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Support";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Support;
-}
-
-internal class BlockHeroEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Hero";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero;
-}
-
-internal class BlockParagonEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Paragon";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Paragon;
-}
-
-internal class BlockItemsEffect : Effect, IBlockCardEffect
-{
-    protected override string Name => "Block Items";
-    protected override string? Image => throw new NotImplementedException();
-
-    void IBlockCardEffect.OnDraw(ref bool blocked, HeroCard card) => blocked |= card.Type == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Items;
-}
+public interface IEffect { }

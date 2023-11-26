@@ -108,6 +108,9 @@ public class MapGenerator : MonoBehaviour
 
         // Create lines
         CreateLines();
+
+        // Destroy once done
+        ReleaseResources();
     }
 
     #region Map Generation
@@ -259,7 +262,7 @@ public class MapGenerator : MonoBehaviour
 
     private Vector3 GetRandomOffset()
     {
-        if (Main.GetSettingValue(Main.SETTING_RANDOM_MAP_OFFSET, false))
+        if (Settings.GetSettingValue(Settings.SETTING_RANDOM_MAP_OFFSET, false))
             return Vector3.zero;
 
         var rdmAngle = Random.Range(0, 360);
@@ -381,25 +384,23 @@ public class MapGenerator : MonoBehaviour
             Button btn = mapNode.GetComponent<Button>();
 
             btn.interactable = true;
-            btn.onClick.AddListener(new Function(() =>
+            btn.onClick.AddListener(() =>
             {
-                GameManager.Instance.UiManager?.UseLoading(
-                    preLoad: new System.Action(() =>
-                    {
-                        SoundManager.PlaySound(SoundManager.SOUND_FIGHT_STARTED, SoundManager.GeneralGroup);
-                    }),
+                UIManager.UseLoading(preLoad: () =>
+                {
+                    SoundManager.PlaySound(SoundManager.SOUND_FIGHT_STARTED, SoundManager.GeneralGroup);
+                },
+                postLoad: () =>
+                {
+                    prevNodeIndex = mapNode.index;
 
-                    postLoad: new System.Action(() =>
-                    {
-                        prevNodeIndex = mapNode.index;
+                    // Start new fight
+                    UIManager.SetGameUIActive(true);
+                    GameManager.Instance.StartFight(mapNode.NodeType);
 
-                        // Start new fight
-                        GameManager.Instance.UiManager?.GameUI?.SetActive(true);
-                        GameManager.Instance.StartFight(mapNode.NodeType);
-
-                        MapObjectsParent?.gameObject.SetActive(false);
-                    }));
-            }));
+                    MapObjectsParent?.gameObject.SetActive(false);
+                });
+            });
         }
     }
 
@@ -502,6 +503,11 @@ public class MapGenerator : MonoBehaviour
     #endregion Get Values
 
     private void OnDestroy()
+    {
+        ReleaseResources();
+    }
+
+    private void ReleaseResources()
     {
         if (nodePrefab != null)
             GameObject.Destroy(nodePrefab);

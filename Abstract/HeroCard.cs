@@ -1,6 +1,5 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Enums;
-using BTDAdventure.Effects;
 using BTDAdventure.Managers;
 using Il2CppAssets.Scripts.Models.TowerSets;
 using Color = System.Drawing.Color;
@@ -9,10 +8,13 @@ namespace BTDAdventure.Cards.Monkeys;
 
 public abstract class HeroCard : ModContent
 {
+    /// <summary>
+    /// Name to display when the card is displayed.
+    /// </summary>
     public abstract string DisplayName { get; }
 
     /// <summary>
-    /// GUID of the portrait sprite
+    /// GUID of the portrait sprite.
     /// </summary>
     public abstract string Portrait { get; }
 
@@ -21,12 +23,15 @@ public abstract class HeroCard : ModContent
     /// </summary>
     public abstract string Description { get; }
 
+    /// <summary>
+    /// Description used when viewing the card in the reward UI.
+    /// </summary>
     public virtual string RewardDescription => Description;
 
     /// <summary>
-    /// Determines in which category (primary, magic, military) the tower is in
+    /// Determines in which category (primary, magic, military) the tower is in.
     /// </summary>
-    public abstract TowerSet? Type { get; }
+    public abstract TowerSet Type { get; }
 
     public virtual bool ExileOnPlay => false;
 
@@ -34,19 +39,17 @@ public abstract class HeroCard : ModContent
 
     #region Background
 
-    public string? GetBackgroundGUID() => Type switch
+    /// <returns>GUID of the background used for <see cref="HeroCard.Type"/> of this card.</returns>
+    public virtual string? GetBackgroundGUID() => Type switch
     {
-        TowerSet.Primary => VanillaSprites.TowerContainerPrimary,
         TowerSet.Military => VanillaSprites.TowerContainerMilitary,
         TowerSet.Magic => VanillaSprites.TowerContainerMagic,
         TowerSet.Support => VanillaSprites.TowerContainerSupport,
         TowerSet.Hero => VanillaSprites.TowerContainerHero,
         TowerSet.Items => VanillaSprites.PowerContainer,
         TowerSet.Paragon => VanillaSprites.TowerContainerParagonLarge,
-        _ => GetCustomBackgroundGUID(),
+        _ => VanillaSprites.TowerContainerPrimary,
     };
-
-    protected virtual string? GetCustomBackgroundGUID() => null;
 
     #endregion Background
 
@@ -54,9 +57,9 @@ public abstract class HeroCard : ModContent
 
     #region Attack
 
-    protected static void AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
+    protected static int AttackEnemy(int amount) => AttackEnemy(new Damage(amount));
 
-    protected static void AttackEnemy(Damage damage) => GameManager.Instance.AttackEnemy(damage);
+    protected static int AttackEnemy(Damage damage) => GameManager.Instance.AttackEnemy(damage);
 
     protected static void AttackAllEnemies(int amount) => AttackAllEnemies(new Damage(amount));
 
@@ -80,8 +83,10 @@ public abstract class HeroCard : ModContent
         return "#" + color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2") + color.A.ToString("X2");
     }
 
+    /// <returns>Color of the text when the attack is increased.</returns>
     protected virtual Color? GetPlusAttackColor(int difference) => null;
 
+    /// <returns>Color of the text when the attack is reduced.</returns>
     protected virtual Color? GetMinusAttackColor(int difference) => null;
 
     #endregion Attack
@@ -90,13 +95,18 @@ public abstract class HeroCard : ModContent
 
     protected static void AddLevelPlayer<T>(int amount) where T : Effect => GameManager.Instance.AddLevelPlayer<T>(amount);
 
+    /// <inheritdoc cref="GameManager.AddLevelEnemy{T}(int)"/>
     protected static void AddLevelEnemy<T>(int amount) where T : Effect => GameManager.Instance.AddLevelEnemy<T>(amount);
 
+    /// <inheritdoc cref="GameManager.AddLevelToAll{T}(int)"/>
     protected static void AddLevelEnemyAll<T>(int amount) where T : Effect => GameManager.Instance.AddLevelToAll<T>(amount);
 
+    /// <inheritdoc cref="GameManager.AddPermanentLevelPlayer{T}(int)"/>
     protected static void AddPermanentLevelPlayer<T>(int amount) where T : Effect => GameManager.Instance.AddPermanentLevelPlayer<T>(amount);
 
     protected static int GetEffectPlayer<T>() where T : Effect => GameManager.Instance.GetEffectLevelPlayer<T>();
+
+    protected static int GetEffectEnemy<T>() where T : Effect => GameManager.Instance.GetEffectLevelEnemy<T>();
 
     #endregion Effect
 
@@ -108,6 +118,7 @@ public abstract class HeroCard : ModContent
 
     #region Cards
 
+    /// <inheritdoc cref="GameManager.AddCard(HeroCard)"/>
     protected static void AddCard(HeroCard card) => GameManager.Instance.AddCard(card);
 
     #endregion Cards
@@ -171,33 +182,3 @@ public abstract class HeroCard : ModContent
 //        _displayName = TowerModel.GetUpgrade(TowerModel.tiers.IndexOf(maxValue), maxValue).LocsKey;
 //    }
 //}
-
-public class MonkeyVillage000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.MonkeyVillage000;
-    public override TowerSet? Type => TowerSet.Support;
-
-    public override string DisplayName => "Base Monkey Village";
-
-    public override string Description => $"Adds {12} shield";
-
-    internal override void PlayCard()
-    {
-        AddShield(12);
-    }
-}
-
-public class GlueGunner000 : HeroCard
-{
-    public override string Portrait => VanillaSprites.GlueGunner000;
-    public override TowerSet? Type => TowerSet.Primary;
-    public override string DisplayName => "Base Glue Gunner";
-
-    public override string Description => $"Gives Double Damage to the player until the next turn";
-
-    internal override void PlayCard()
-    {
-        //AddLevelEnemyAll<DoubleDamageEffect>(1);
-        AddLevelPlayer<DoubleDamageEffect>(1);
-    }
-}

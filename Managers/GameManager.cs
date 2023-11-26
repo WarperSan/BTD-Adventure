@@ -3,8 +3,8 @@ using BTD_Mod_Helper.Extensions;
 using BTDAdventure.Components;
 using BTDAdventure.Enemy_Actions;
 using BTDAdventure.Entities;
+using BTDAdventure.Worlds;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace BTDAdventure.Managers;
@@ -13,106 +13,32 @@ internal class GameManager
 {
     #region Constants
 
-    public const int MaxEnemiesCount = 3;
-    public const int MaxPlayerCardCount = 4;
+    private const string NAME_MAIN_BUNDLE = "btdadventure";
+
+    public const int COUNT_MAX_ENEMIES = 3;
+    public const int PLAYER_HAND_SIZE = 4;
 
     #endregion Constants
 
     internal static GameManager Instance { get; set; } = new();
 
-    internal void Initialize()
+    static GameManager()
     {
-        EffectsType = InitializeAirport<Effect>();
-
-        MainBundle = ModContent.GetBundle<Main>("btdadventure");
+        MainBundle = ModContent.GetBundle<Main>(NAME_MAIN_BUNDLE);
         Log("Bundle Loaded");
     }
 
-    #region Static
-
-    internal static Type[] InitializeAirport<T>()
-    {
-        try
-        {
-            // Register enemy types. If an enemy of another type is found, it is invalid.
-            Type[] types = FindDerivedTypes<T>();
-#if DEBUG
-            Type givenType = typeof(T);
-
-            foreach (var item in types)
-            {
-                Log($"{item.Name} registered.", $"{givenType.Name} Airport");
-            }
-#endif
-
-            Log($"Found {types.Length} items of type \'{typeof(T).Name}\'.");
-            return types;
-        }
-        catch (Exception e)
-        {
-            Log(e);
-            throw;
-        }
-    }
-
-    public static Type[] FindDerivedTypes<T>()
-    {
-        Type baseType = typeof(T);
-        Type[] types = baseType.Assembly.GetTypes();
-        List<Type> wantedTypes = new();
-        foreach (var item in types)
-        {
-            if (item != baseType && baseType.IsAssignableFrom(item) && !item.IsAbstract)
-                wantedTypes.Add(item);
-        }
-        return wantedTypes.ToArray();
-    }
-
-    public static bool CreateInstance<T>(Type targetType, out T? result)
-    {
-        result = (T?)Activator.CreateInstance(targetType);
-
-        if (result == null)
-        {
-            Log($"Failed to create an instance of type \'{targetType.Name}\'.");
-        }
-        return result != null;
-    }
-
-    internal static bool IsGivenTypeInArray<T>(Type[]? array, Type t, bool sendErrorMessage)
-    {
-        if (array == null)
-            return false;
-
-        bool r = Array.IndexOf(array, t) != -1;
-
-        if (!r && sendErrorMessage)
-        {
-            Log($"\'{t.Name}\' is not a valid {typeof(T).Name} type");
-        }
-        return r;
-    }
-
-    #endregion Static
-
-    #region Airports
-
     internal PlayerEntity? Player;
-
-    internal Type[]? EffectsType;
-
-    public bool IsTypeAnEffect(Type type) => IsGivenTypeInArray<Effect>(EffectsType, type, true);
-
-    #endregion Airports
 
     #region Managers
 
-    internal UIManager? UiManager;
     private CardManager? CardManager;
 
     #endregion Managers
 
     private bool _isFirstFight;
+
+    private string? _currentEncounterType = null;
 
     // Prevents infinite battles.
     // Each X turns, enemies will gain +1 base damage
@@ -126,22 +52,15 @@ internal class GameManager
     {
         Reset();
 
-        // Initialize Prefabs
-        RewardCardPrefab ??= UIManager.InitializeRewardPrefab();
-        EffectSlotPrefab ??= GameObject.Instantiate(LoadAsset<GameObject>("EffectSlot"));
-        PlayerCardPrefab ??= GameObject.Instantiate(LoadAsset<GameObject>("Card"));
-        Main.blurMat = LoadAsset<Material>("BlurMat");
+        //Main.blurMat = LoadAsset<Material>("BlurMat");
 
         TaskScheduler.ScheduleTask(new Action(() =>
         {
             Main.blurMat = LoadAsset<Material>("BlurMat");
         }), BTD_Mod_Helper.Api.Enums.ScheduleType.WaitForFrames, 3);
 
-        // Create UIManager
-        UiManager ??= new();
-
         // Remove base UI & add bundle UI
-        Transform? mainUI = UiManager.SetUpMainUI();
+        Transform? mainUI = UIManager.SetUpMainUI();
 
         if (mainUI == null)
         {
@@ -170,12 +89,16 @@ internal class GameManager
         }
 
         // Create Player entity
-        Player = new(mainUI.gameObject, 50, new WarriorClass());
+        Player = new(mainUI.gameObject, ModContent.GetInstance<WarriorClass>());
 
-        this.CardManager = new(Player.RogueClass);
+        this.CardManager = new(Player.RogueClass, PLAYER_HAND_SIZE);
 
         Player?.UpdatePlayerUI(); // Put values on the labels
-        UiManager?.GameUI?.SetActive(false);
+
+        CurrentWorld = ModContent.GetInstance<Forest>();
+
+        UIManager.InitializeWorld(2);
+        UIManager.SetGameUIActive(false);
     }
 
     internal void StartFight(string type)
@@ -184,6 +107,7 @@ internal class GameManager
         {
             _turnCount = uint.MaxValue;
             FightDifficulty = 0;
+            _currentEncounterType = type;
 
             // Clear status
             // Set-up player cards UI
@@ -195,7 +119,7 @@ internal class GameManager
 
             // Get enmies group
             // Build enemies
-            PopulateEnemies(type, CurrentWorld);
+            PopulateEnemies(type, GetWorld());
 
             StartPlayerTurn();
 
@@ -222,13 +146,15 @@ internal class GameManager
 
         // Set-up player cards UI if necessary
         if (_isFirstFight)
-            this.UiManager?.InitPlayerCards();
+            UIManager.InitPlayerCards();
     }
 
     private void StartPlayerTurn()
     {
         if (!Player?.IsAlive ?? false)
             return;
+
+        GameEndCheck();
 
         // Increases general difficulty
         _turnCount++;
@@ -254,32 +180,32 @@ internal class GameManager
                 continue;
 
             item.UpdateEffects();
-            item.MoveIntent();
+            item.AdvanceIntent();
         }
 
         // Check fore-turn skills
 
-        Player?.ClearShield();
+        Player?.PreTurn();
 
         // Restore mana
         Player?.ResetMana();
 
         // Fill hand
-        this.CardManager?.FillHand(MaxPlayerCardCount, swingAnimation: !_isFirstFight);
+        this.CardManager?.ShuffleHand(!_isFirstFight);
 
         // Check pre-turn skills
 
-        if (UiManager != null && UiManager.EndTurnBtn != null)
-            UiManager.EndTurnBtn.interactable = true;
+        UIManager.SetEndTurnBtnInteractable(true);
     }
 
     public void EndTurn()
     {
         this.CardManager?.EmptyHand();
         SelectCard(-1);
-        Player?.UpdateEffects();
 
-        MelonLoader.MelonCoroutines.Start(ExecuteActionCoroutine());
+        Player?.PostTurn();
+
+        UIManager.StartCoroutine(ExecuteActionCoroutine());
 
         //GameActivity.this.endTurn.clearAnimation();
         // Disable end turn btn
@@ -290,28 +216,24 @@ internal class GameManager
     {
         SoundManager.PlaySound(SoundManager.SOUND_FIGHT_WON, SoundManager.GeneralGroup);
 
-        UiManager?.VictoryUI?.SetActive(true);
-        if (UiManager != null && UiManager.VictoryBtn != null)
-            UiManager.VictoryBtn.enabled = true;
-    }
-
-    internal void VictoryUIClose()
-    {
-        if (UiManager != null && UiManager.VictoryBtn != null)
-            UiManager.VictoryBtn.enabled = false;
-
-        RewardManager rewardManager = new(UiManager);
-        rewardManager.OpenRewardUI();
+        UIManager.SetVictoryUIActive(true);
+        UIManager.SetVictoryBtnEnable(true);
     }
 
     internal void OnDefeat()
     {
         SoundManager.PlaySound(SoundManager.SOUND_FIGHT_LOST, SoundManager.GeneralGroup);
 
-        UiManager?.ShowDeathUI();
+        UIManager.ShowDeathUI();
     }
 
-    internal void Reset()
+    internal void VictoryUIClose()
+    {
+        UIManager.SetVictoryBtnEnable(false);
+        RewardManager.OpenRewardUI(_currentEncounterType ?? MapGenerator.NODE_TYPE_NORMAL);
+    }
+
+    private void Reset()
     {
         // Reset first fight flag
         _isFirstFight = true;
@@ -323,123 +245,63 @@ internal class GameManager
         for (int i = 0; i < _enemies.Length; i++) { _enemies[i] = null; }
     }
 
+    private void GameEndCheck()
+    {
+        if (GetEnemyCount() == 0)
+            OnVictory();
+    }
+
     #region World
 
     private World? CurrentWorld;
 
-    internal void SetWord(World world)
-    {
-        CurrentWorld = world;
-    }
-
-#nullable disable
+    internal void SetWord(World world) => CurrentWorld = world;
 
     internal World GetWorld()
     {
         if (CurrentWorld == null)
             SetWord(new Worlds.Forest());
+#nullable disable
         return CurrentWorld;
+#nullable restore
     }
-
-#nullable enable
 
     #endregion World
 
-    #region Player
-
     #region Card
 
+    /// <summary>
+    /// Adds <paramref name="card"/> to the global deck. This modification will be kept after the fight.
+    /// </summary>
     internal void AddCardPermanent(HeroCard card) => this.CardManager?.AddCard(card, true);
 
+    /// <summary>
+    /// Adds <paramref name="card"/> to the local deck. This modification will not be kept after the fight.
+    /// </summary>
     internal void AddCard(HeroCard card) => this.CardManager?.AddCard(card, false);
 
+    /// <inheritdoc cref="CardManager.GetCard"/>
     internal HeroCard? GetCard() => this.CardManager?.GetCard();
 
+    /// <inheritdoc cref="CardManager.SelectCard(int)"/>
     internal void SelectCard(int index) => this.CardManager?.SelectCard(index);
 
+    /// <inheritdoc cref="CardManager.GetCounter(string)"/>
     internal int GetCounter(string name) => this.CardManager?.GetCounter(name) ?? 0;
 
+    /// <inheritdoc cref="CardManager.AddCounter(string, int)"/>
     internal int AddCounter(string name, int value) => this.CardManager?.AddCounter(name, value) ?? 0;
 
     #endregion Card
 
-    #region Effect
+    #region Player
 
-    internal int GetEffectLevelPlayer<T>() where T : Effect => GetEffectLevelTarget<T>(Player);
-
-    internal void AddPermanentLevelPlayer<T>(int amount) where T : Effect => AddPermaLevelToTarget<T>(null, Player, amount);
-
-    /// <summary>
-    /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
-    /// </summary>
-    /// <remarks>
-    /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
-    /// </remarks>
-    internal void AddLevelPlayer<T>(int amount) where T : Effect => AddLevelToTarget<T>(null, Player, amount);
-
-    #endregion Effect
-
-    internal int GetPlayerDamage(int damage) => Player?.GetAttack(damage) ?? 0;
+    /// <returns>Amount of damage that an attack dealing <paramref name="damage"/> damage would deal to <see cref="GameManager.Player"/>.</returns>
+    internal int GetPlayerDamage(int damage) => Player?.CalculateDamage(damage) ?? 0;
 
     internal void GainMana(uint amount) => Player?.AddMana(amount);
 
     #endregion Player
-
-    #region Coroutines
-
-    private IEnumerator ExecuteActionCoroutine()
-    {
-        // Lock all cards
-        UiManager?.SetLockState(true);
-
-        if (Player != null)
-            Player.AreCardsLocked = true;
-
-        foreach (var item in _enemies) item?.PreTurn();
-
-        float value = (float)Main.GetSettingValue<double>(Main.SETTING_ENEMY_SPEED);
-
-        foreach (var item in _enemies)
-        {
-            // If the item is null or the player is dead
-            if (item == null || Player?.IsAlive == false)
-                continue;
-
-            yield return new WaitForSeconds(value);
-
-            if (item == null)
-            {
-#if DEBUG
-                Log("Tried to execute an action on an enemy that does not exist.");
-#endif
-            }
-            else
-            {
-                if (Player == null)
-                {
-                    Log("No instance of Player was defined.");
-                    continue;
-                }
-
-                item.PreAction();
-
-                yield return new WaitForSeconds(item.ExecuteIntent()); // Wait for animation
-
-                item.PostAction();
-            }
-        }
-
-        // If player is alive
-        if (Player?.IsAlive ?? false)
-        {
-            // Execute enemies' post turn
-            foreach (var item in _enemies) item?.PostTurn();
-        }
-
-        StartPlayerTurn();
-    }
-
-    #endregion Coroutines
 
     #region Enemy
 
@@ -448,7 +310,7 @@ internal class GameManager
     /// <summary>
     /// Array of the enemies. If the item is null, no enemy is at this position
     /// </summary>
-    private readonly EnemyEntity?[] _enemies = new EnemyEntity?[MaxEnemiesCount];
+    private readonly EnemyEntity?[] _enemies = new EnemyEntity?[COUNT_MAX_ENEMIES];
 
     internal void SelectEnemy(int index)
     {
@@ -462,6 +324,8 @@ internal class GameManager
             return;
 
         this.CardManager?.PlayCard();
+
+        GameEndCheck();
     }
 
     /// <summary>
@@ -497,7 +361,7 @@ internal class GameManager
             return false;
         }
 
-        _enemies[position] = UiManager?.AddEnemy(enemyCard, position);
+        _enemies[position] = UIManager.AddEnemy(enemyCard, position);
 
         if (initIntent)
             _enemies[position]?.SetIntent(new WaitAction());
@@ -507,7 +371,7 @@ internal class GameManager
     /// <summary>
     /// Kills the <see cref="EnemyEntity"/> at <paramref name="position"/>
     /// </summary>
-    /// <returns>The enemy at <paramref name="position"/> died correctly</returns>
+    /// <returns>This call killed an enemy.</returns>
     internal bool KillEnemy(int position)
     {
         if (position < 0 || position >= _enemies.Length)
@@ -518,88 +382,19 @@ internal class GameManager
         if (enemyKilled == null)
             return false;
 
-        Player?.AddCoins(enemyKilled.GetCoinsGiven());
+        Reward reward = enemyKilled.GetReward();
+        reward = GetWorld().AlterEnemyReward(reward);
+        reward.CollectReward();
 
-        UiManager?.KillEnemy(position, _enemies[position]);
+        UIManager.KillEnemy(position, _enemies[position]);
         _enemies[position] = null;
 
         // OnDeathAbility
-
-        if (GetEnemyCount() == 0)
-            OnVictory();
         return true;
     }
 
-    #region Attack
-
-    /// <summary>
-    /// Attacks the selected enemy with the given damage
-    /// </summary>
-    internal void AttackEnemy(Damage damage) => AttackEnemy(damage, _enemies[SelectedEnemyIndex]);
-
-    /// <summary>
-    /// Attacks all enemies the given damage
-    /// </summary>
-    internal void AttackAllEnemies(Damage damage)
-    { foreach (var item in _enemies) AttackEnemy(damage, item); }
-
-    /// <summary>
-    /// Attacks <paramref name="target"/> with <paramref name="damage"/>
-    /// </summary>
-    private void AttackEnemy(Damage damage, Entity? target)
-    {
-        Player?.SetDamage(damage.Amount);
-        damage.Amount = Player?.GetAttack() ?? 0;
-        Player?.AttackTarget(damage, target);
-    }
-
-    #endregion Attack
-
-    #region Effect
-
-    /// <summary>
-    /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
-    /// </summary>
-    /// <remarks>
-    /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
-    /// </remarks>
-    internal void AddLevelEnemy<T>(int amount) where T : Effect => AddLevelToTarget<T>(Player, _enemies[SelectedEnemyIndex], amount);
-
-    /// <summary>
-    /// Adds <paramref name="amount"/> to <see cref="Effect.Level"/> of the effect of <paramref name="type"/>
-    /// </summary>
-    /// <remarks>
-    /// If no instance of an effect of <paramref name="type"/> is found, an instance will be created
-    /// </remarks>
-    internal void AddLevelToAll<T>(int amount) where T : Effect
-    { foreach (var item in _enemies) AddLevelToTarget<T>(Player, item, amount); }
-
-    private static void AddLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
-    {
-        if (source != null)
-        {
-            // Modify the amount depending on the source
-        }
-
-        target?.AddLevel<T>(amount);
-    }
-
-    private static void AddPermaLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
-    {
-        if (source != null)
-        {
-            // Modify the amount depending on the source
-        }
-
-        target?.AddPermanentLevel<T>(amount);
-    }
-
-    private static int GetEffectLevelTarget<T>(Entity? target) where T : Effect => target?.GetEffectLevel<T>() ?? 0;
-
-    #endregion Effect
-
     /// <returns>Count of enemies still alive</returns>
-    public int GetEnemyCount()
+    internal int GetEnemyCount()
     {
         int count = 0;
 
@@ -614,27 +409,19 @@ internal class GameManager
     /// <summary>
     /// Spawns a random encounter depending on the given parameters
     /// </summary>
-    /// <param name="encounterType">Type of the encounter (Normal, Elite, Boss)</param>
-    /// <param name="world">Name of the current world</param>
-    private void PopulateEnemies(string encounterType, World? world)
+    /// <param name="encounterType">Type of the encounter</param>
+    /// <param name="world">World to take a group from</param>
+    private void PopulateEnemies(string encounterType, World world)
     {
-        if (world == null)
-        {
-            Log("No world was defined.");
-            return;
-        }
-
-        CurrentWorld ??= new Worlds.Forest();
-
         EnemyCard[] enemies = world.GetEnemies(encounterType);
 
-        for (int i = 0; i < MaxEnemiesCount; i++)
+        for (int i = 0; i < COUNT_MAX_ENEMIES; i++)
         {
             EnemyCard? enemy = enemies.Length > i ? enemies[i] : null;
 
             if (enemy == null)
             {
-                UiManager?.SetEnemyState(false, i);
+                UIManager.SetEnemyState(false, i);
                 continue;
             }
 
@@ -644,13 +431,205 @@ internal class GameManager
 
     #endregion Enemy
 
+    #region Attack
+
+    /// <summary>
+    /// Attacks the selected enemy with an attack dealing <paramref name="damage"/> damage.
+    /// </summary>
+    /// <returns>
+    /// Total amount of damage dealt to the selected enemy.
+    /// </returns>
+    internal int AttackEnemy(Damage damage) => AttackEnemy(damage, _enemies[SelectedEnemyIndex]);
+
+    /// <summary>
+    /// Attacks all enemies with an attack dealing <paramref name="damage"/> damage.
+    /// </summary>
+    /// <returns>
+    /// Total amount of damage dealt across all enemies.
+    /// </returns>
+    internal int AttackAllEnemies(Damage damage)
+    {
+        int amount = 0;
+        foreach (var item in _enemies) 
+            amount += AttackEnemy(damage, item);
+        return amount;
+    }
+
+    /// <summary>
+    /// Attacks <paramref name="target"/> with an attack dealing <paramref name="damage"/> damage.
+    /// </summary>
+    /// <returns>
+    /// Total amount of damage dealt to <paramref name="target"/>.
+    /// </returns>
+    private int AttackEnemy(Damage damage, Entity? target)
+    {
+        if (Player == null || target == null)
+            return -1;
+
+        Player.SetDamage(damage.Amount);
+        damage.Amount = Player.CalculateDamage();
+        int damageAmount = Player.AttackTarget(damage, target);
+
+        if (target != null)
+            target.PlayEffectVisual("AttackEffect");
+
+        return damageAmount;
+    }
+
+    #endregion Attack
+
+    #region Effects
+
+    // --- ENEMY ---
+    /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <typeparamref name="T"/> to the target enemy.
+    /// </summary>
+    /// <inheritdoc cref="AddLevelToEnemyPosition{T}(Entity?, int, int)"/>
+    internal int AddLevelEnemy<T>(int amount) where T : Effect => AddLevelToEnemyPosition<T>(Player, amount, SelectedEnemyIndex);
+
+    /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <typeparamref name="T"/> to every enemy alive.
+    /// </summary>
+    /// <inheritdoc cref="AddLevelToEnemyPosition{T}(Entity?, int, int)"/>
+    internal int[] AddLevelToAll<T>(int amount) where T : Effect
+    {
+        int[] levels = new int[COUNT_MAX_ENEMIES];
+
+        for (int i = 0; i < COUNT_MAX_ENEMIES; i++)
+            levels[i] = AddLevelToEnemyPosition<T>(Player, amount, i);
+
+        return levels;
+    }
+
+    /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <typeparamref name="T"/> to 
+    /// the enemy at <paramref name="position"/> from <paramref name="source"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddLevelToTarget{T}(Entity?, Entity?, int)"/>
+    private int AddLevelToEnemyPosition<T>(Entity? source, int amount, int position) where T : Effect 
+        => AddLevelToTarget<T>(source, _enemies[position], amount);
+
+    internal int GetEffectLevelEnemy<T>() where T : Effect => _enemies[SelectedEnemyIndex]?.GetEffectLevel<T>() ?? 0;
+
+    // --- PLAYER ---
+    /// <returns>Level of the effect of type <typeparamref name="T"/> on <see cref="GameManager.Player"/>.</returns>
+    internal int GetEffectLevelPlayer<T>() where T : Effect => Player?.GetEffectLevel<T>() ?? 0;
+
+    /// <summary>
+    /// Adds <paramref name="amount"/> permanent levels of the effect of type <typeparamref name="T"/>
+    /// to <see cref="GameManager.Player"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddPermaLevelToTarget{T}(Entity?, Entity?, int)"/>
+    internal int AddPermanentLevelPlayer<T>(int amount) where T : Effect => AddPermaLevelToTarget<T>(null, Player, amount);
+
+    /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <paramref name="type"/>
+    /// to <see cref="GameManager.Player"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddLevelToTarget{T}(Entity?, Entity?, int)"/>
+    internal int AddLevelPlayer<T>(int amount) where T : Effect => AddLevelToTarget<T>(null, Player, amount);
+
+    // --- GENERAL ---
+    /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <typeparamref name="T"/> to <paramref name="target"/> 
+    /// from <paramref name="source"/>.
+    /// </summary>
+    /// <remarks>
+    /// If the target is not defined, the returning value will be -1.
+    /// </remarks>
+    /// <inheritdoc cref="Entity.AddLevel{T}(int)"/>
+    private static int AddLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
+    {
+        if (target == null)
+            return -1;
+
+        if (source != null)
+        {
+            // Modify the amount depending on the source
+        }
+
+        return target.AddLevel<T>(amount);
+    }
+
+    /// <summary>
+    /// Adds <paramref name="amount"/> permanent levels to the effect of type <typeparamref name="T"/> to <paramref name="target"/>
+    /// from <paramref name="source"/>.
+    /// </summary>
+    /// <remarks>
+    /// If the target is not defined, the returning value will be -1.
+    /// </remarks>
+    /// <inheritdoc cref="Entity.AddPermanentLevel{T}(int)"/>
+    private static int AddPermaLevelToTarget<T>(Entity? source, Entity? target, int amount) where T : Effect
+    {
+        if (target == null)
+            return -1;
+
+        if (source != null)
+        {
+            // Modify the amount depending on the source
+        }
+
+        return target.AddPermanentLevel<T>(amount);
+    }
+
+    #endregion Effects
+
+    #region Coroutines
+
+    private IEnumerator ExecuteActionCoroutine()
+    {
+        // Lock all cards
+        UIManager.SetLockState(true);
+
+        if (Player != null)
+            Player.AreCardsLocked = true;
+
+        foreach (var item in _enemies) 
+            item?.PreTurn();
+
+        float value = (float)Settings.GetSettingValue<double>(Settings.SETTING_ENEMY_SPEED);
+
+        foreach (var item in _enemies)
+        {
+            if (Player == null)
+            {
+                Log("No instance of Player was defined.");
+                break;
+            }
+
+            // If there is no enemy defined at this position
+            if (item == null)
+                continue;
+
+            // If the item is null or the player is dead
+            if (item == null || Player.IsAlive == false)
+                continue;
+
+            yield return new WaitForSeconds(value);
+
+            item.PreAction(null);
+
+            yield return new WaitForSeconds(item.ExecuteIntent()); // Wait for animation
+
+            item.PostAction(null);
+        }
+
+        // If player is alive
+        if (Player?.IsAlive ?? false)
+        {
+            // Execute enemies' post turn
+            foreach (var item in _enemies) 
+                item?.PostTurn();
+        }
+
+        StartPlayerTurn();
+    }
+
+    #endregion Coroutines
+
     #region Bundle
 
     private static AssetBundle? MainBundle;
-
-    internal GameObject? PlayerCardPrefab;
-    internal GameObject? RewardCardPrefab;
-    internal GameObject? EffectSlotPrefab;
 
     /// <summary>
     /// Tries to load the asset from <see cref="MainBundle"/>
@@ -695,10 +674,10 @@ internal class GameManager
     #region Logging
 
     /// <summary>
-    /// Called whenever you need to check if <paramref name="obj"/> is null and display an error message if it is
+    /// Called whenever you need to check if <paramref name="obj"/> is null and display an error message if it is.
     /// </summary>
-    /// <returns>True if <paramref name="obj"/> is null</returns>
-    public static bool LogNull<T>(T obj, string nameOfObj, [System.Runtime.CompilerServices.CallerMemberName] string source = "")
+    /// <returns><paramref name="obj"/> is null.</returns>
+    internal static bool LogNull<T>(T obj, string nameOfObj, [System.Runtime.CompilerServices.CallerMemberName] string source = "")
     {
         bool result = obj == null;
         if (result)
@@ -709,7 +688,7 @@ internal class GameManager
     /// <summary>
     /// Called to display a message into the console
     /// </summary>
-    public static void Log(object? obj, [System.Runtime.CompilerServices.CallerMemberName] string? source = null)
+    internal static void Log(object? obj, [System.Runtime.CompilerServices.CallerMemberName] string? source = null)
         => BTD_Mod_Helper.ModHelper.GetMod<Main>().LoggerInstance.Msg($"{(string.IsNullOrEmpty(source) ? "" : $"[{source}]")} {obj ?? "null"}");
 
     #endregion Logging

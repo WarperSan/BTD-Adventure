@@ -11,44 +11,22 @@ namespace BTDAdventure.Entities;
 
 public class PlayerEntity : Entity
 {
-    internal bool AreCardsLocked = false;
-
-    public PlayerEntity(GameObject? root, int maxHealth, RogueClass rogueClass) : base(root)
+    public PlayerEntity(GameObject root, RogueClass rogueClass) : base(root)
     {
-        MaxHealth = maxHealth;
-        Health = maxHealth;
-        RogueClass = rogueClass;
+        SetRogueClass(rogueClass);
     }
 
-    #region Health
+    #region UI
 
-    protected override bool ScaleUpMaxHP => true;
-
-    protected override void SetUpHealthUI(GameObject root)
+    public void UpdatePlayerUI()
     {
-        GameObject health = root.transform.Find(ValuesPath + "/Health").gameObject;
-        HealthImg = health.transform.Find("Shield/Health").gameObject;
-        HealthImg.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LivesIcon);
-        HealthText = InitializeText(health.transform.Find("Text"), TopValueFontSize);
+        UpdateHealthUI();
+        UpdateCoinsUI();
+        UpdateBloonjaminsUI();
+        UpdateShieldText();
     }
 
-    protected override void OnDeath() => GameManager.Instance.OnDefeat();
-
-    #endregion Health
-
-    #region Shield
-
-    protected override void SetUpShieldUI(GameObject root)
-    {
-        const string shieldPath = UIManager.ValuesPath + "/Health/Shield";
-
-        ShieldImg = root.transform.Find(shieldPath + "/Icon")?.gameObject;
-
-        if (ShieldImg != null)
-            ShieldText = InitializeText(ShieldImg.transform.Find("Text"), TopValueFontSize / 2);
-    }
-
-    #endregion Shield
+    #endregion
 
     #region Coins
 
@@ -101,7 +79,7 @@ public class PlayerEntity : Entity
     {
         uint amount = MaxMana;
 
-        // Check for mana effects
+        OnManaReset?.Invoke(ref amount);
 
         SetMana(amount);
     }
@@ -122,6 +100,13 @@ public class PlayerEntity : Entity
         }*/
     }
 
+    // --- Mana Events ---
+    private delegate void ManaGainEvent(ref uint amount);
+    private delegate void ManaResetEvent(ref uint amount);
+
+    private event ManaGainEvent? OnManaGain;
+    private event ManaResetEvent? OnManaReset;
+
     #endregion Mana
 
     #region Piles
@@ -137,19 +122,9 @@ public class PlayerEntity : Entity
 
     #endregion Piles
 
-    #region Damage
+    #region Cards
 
-    internal void SetDamage(int amount) => Damage = amount;
-
-    #endregion Damage
-
-    #region Effect
-
-    #region Card Block
-
-    private delegate void CardPlayEvent(ref bool blocked, HeroCard card);
-
-    private event CardPlayEvent OnCardPlay;
+    internal bool AreCardsLocked = false;
 
     internal bool BlockCardOnPlay(HeroCard card)
     {
@@ -158,8 +133,6 @@ public class PlayerEntity : Entity
         return isBlocked;
     }
 
-    private event CardPlayEvent OnCardDraw;
-
     internal bool BlockCardOnDraw(HeroCard card)
     {
         bool isBlocked = false;
@@ -167,20 +140,29 @@ public class PlayerEntity : Entity
         return isBlocked;
     }
 
-    #endregion Card Block
+    // --- Cards Events ---
+    private delegate void CardPlayEvent(ref bool blocked, HeroCard card);
 
-    #region Mana Gain
+    private event CardPlayEvent? OnCardPlay;
+    private event CardPlayEvent? OnCardDraw;
 
-    private delegate void ManaGainEvent(ref uint amount);
+    #endregion
 
-    private event ManaGainEvent OnManaGain;
+    #region Rogue Class
+#nullable disable
+    internal RogueClass RogueClass;
+#nullable restore
 
-    #endregion Mana Gain
-
-    protected override void SetUpEffectUI(GameObject root)
+    private void SetRogueClass(RogueClass rogueClass)
     {
-        EffectHolder = root.transform.Find("GameUI/BottomGroup/Status/Scroll View/Viewport/Content")?.gameObject;
+        RogueClass = rogueClass;
+        MaxHealth = rogueClass.GetDefaultMaxHealth();
+        Health = rogueClass.GetDefaultHealth();
     }
+
+    #endregion Rogue Class
+
+    #region Events
 
     protected override void ChildrenSubscribe(Effect effect)
     {
@@ -190,9 +172,10 @@ public class PlayerEntity : Entity
             OnCardDraw += blockCardEffect.OnDraw;
         }
 
-        if (effect is IManaGainEffect manaGainEffect)
+        if (effect is IManaEffect manaGainEffect)
         {
             OnManaGain += manaGainEffect.OnManaGained;
+            OnManaReset += manaGainEffect.OnManaReset;
         }
     }
 
@@ -204,30 +187,68 @@ public class PlayerEntity : Entity
             OnCardDraw -= blockCardEffect.OnDraw;
         }
 
-        if (effect is IManaGainEffect manaGainEffect)
+        if (effect is IManaEffect manaGainEffect)
         {
             OnManaGain -= manaGainEffect.OnManaGained;
+            OnManaReset -= manaGainEffect.OnManaReset;
         }
     }
 
-    #endregion Effect
+    #endregion
+
+    // --- Entity ---
+    #region Health
+
+    protected override bool ScaleUpMaxHP => true;
+
+    protected override void SetUpHealthUI(GameObject root)
+    {
+        GameObject health = root.transform.Find(UIManager.OVERLAY_VALUES_PATH + "/Health").gameObject;
+        HealthImg = health.transform.Find("Shield/Health").gameObject;
+        HealthImg.GetComponentInChildren<Image>().SetSprite(VanillaSprites.LivesIcon);
+        HealthText = UIManager.InitializeText(health.transform.Find("Text"), UIManager.FONT_SIZE_TOP_VALUES);
+    }
+
+    protected override void OnDeath() => GameManager.Instance.OnDefeat();
+
+    #endregion
+
+    #region Shield
+
+    protected override void SetUpShieldUI(GameObject root)
+    {
+        const string shieldPath = UIManager.OVERLAY_VALUES_PATH + "/Health/Shield";
+
+        ShieldImg = root.transform.Find(shieldPath + "/Icon")?.gameObject;
+
+        if (ShieldImg != null)
+            ShieldText = UIManager.InitializeText(ShieldImg.transform.Find("Text"), UIManager.FONT_SIZE_TOP_VALUES / 2);
+    }
+
+    #endregion
+
+    #region Damage
+
+    internal void SetDamage(int amount) => Damage = amount;
+
+    #endregion Damage
 
     #region UI
 
     protected override void SetUpExtraUI(GameObject root)
     {
         // Cash (coins)
-        GameObject cash = root.transform.Find(ValuesPath + "/Cash").gameObject;
+        GameObject cash = root.transform.Find(UIManager.OVERLAY_VALUES_PATH + "/Cash").gameObject;
         cash.GetComponentInChildren<Image>().SetSprite(VanillaSprites.CoinIcon);
-        CashText = InitializeText(cash.transform.Find("Text"), TopValueFontSize);
+        CashText = UIManager.InitializeText(cash.transform.Find("Text"), UIManager.FONT_SIZE_TOP_VALUES);
 
         // Bloonjamins (gems)
-        GameObject bloonjamins = root.transform.Find(ValuesPath + "/Bloonjamins").gameObject;
+        GameObject bloonjamins = root.transform.Find(UIManager.OVERLAY_VALUES_PATH + "/Bloonjamins").gameObject;
         bloonjamins.GetComponentInChildren<Image>().SetSprite(VanillaSprites.BloonjaminsIcon);
-        BloonjaminsText = InitializeText(bloonjamins.transform.Find("Text"), TopValueFontSize);
+        BloonjaminsText = UIManager.InitializeText(bloonjamins.transform.Find("Text"), UIManager.FONT_SIZE_TOP_VALUES);
 
         // Mana
-        ManaText = InitializeText(root.transform.Find("GameUI/Mana/Text"), 110, font: Fonts.Btd6FontBody);
+        ManaText = UIManager.InitializeText(root.transform.Find("GameUI/Mana/Text"), 110, font: Fonts.Btd6FontBody);
 
         // Bottom group
         Transform bottomGroup = root.transform.Find("GameUI/BottomGroup");
@@ -235,25 +256,20 @@ public class PlayerEntity : Entity
         bottomGroup.Find("Status").GetComponent<Image>().SetSprite(VanillaSprites.BlueInsertPanelRound);
 
         // Draw pile
-        DrawPileText = InitializeText(bottomGroup.Find("DrawPile/Text"), 75, TextAlignmentOptions.Left);
+        DrawPileText = UIManager.InitializeText(bottomGroup.Find("DrawPile/Text"), 75, TextAlignmentOptions.Left);
 
         // Discard pile
-        DiscardPileText = InitializeText(bottomGroup.Find("DiscardPile/Text"), 75, TextAlignmentOptions.Right);
-    }
-
-    public void UpdatePlayerUI()
-    {
-        UpdateHealthUI();
-        UpdateCoinsUI();
-        UpdateBloonjaminsUI();
-        UpdateShieldText();
+        DiscardPileText = UIManager.InitializeText(bottomGroup.Find("DiscardPile/Text"), 75, TextAlignmentOptions.Right);
     }
 
     #endregion UI
 
-    #region Rogue Class
+    #region Effect
 
-    internal RogueClass RogueClass;
+    protected override void SetUpEffectUI(GameObject root)
+    {
+        EffectHolder = root.transform.Find("GameUI/BottomGroup/Status/Scroll View/Viewport/Content")?.gameObject;
+    }
 
-    #endregion Rogue Class
+    #endregion Effect
 }

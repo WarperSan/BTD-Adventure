@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace BTDAdventure.Effects;
+namespace BTDAdventure.Effects.Classes;
 
 /// <summary>
 /// Reduces the power of all attacks by 50% (rounded down)

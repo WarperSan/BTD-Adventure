@@ -1,4 +1,4 @@
-﻿namespace BTDAdventure.Effects;
+﻿namespace BTDAdventure.Effects.Classes;
 
 public class ImmuneEffect : Effect, IHealthEffect
 {

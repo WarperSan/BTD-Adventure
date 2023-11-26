@@ -1,27 +1,39 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTDAdventure.Entities;
+using BTDAdventure.Managers;
 using UnityEngine;
 
 namespace BTDAdventure.Cards.EnemyCards;
 
 public abstract class EnemyCard : ModContent
 {
+    #region UI
+
     /// <summary>
     /// Defines the GUID of the image used for the portrait.
     /// </summary>
     public abstract string? Portrait { get; }
+
+    /// <summary>
+    /// Defines the size of the portrait.
+    /// </summary>
+    public virtual Vector2 Size { get; } = new(2, 2);
+
+    public virtual string? GetBackgroundGUID() => null;
+
+    #endregion
 
     #region Stats
 
     /// <summary>
     /// Defines the default amount of max HP the enemy has.
     /// </summary>
-    public abstract int MaxHP { get; }
+    public virtual int MaxHP { get; } = 1;
 
     /// <summary>
     /// Base amount of damage.
     /// </summary>
-    public abstract int Damage { get; }
+    public virtual int Damage { get; } = 1;
 
     /// <summary>
     /// Base amount of shield.
@@ -30,18 +42,23 @@ public abstract class EnemyCard : ModContent
 
     #endregion Stats
 
-    /// <summary>
-    /// Defines the size of the portrait
-    /// </summary>
-    public virtual Vector2 Size { get; } = new(2, 2);
+    #region Reward
 
-    public virtual uint CoinsGiven { get; } = 2;
+    /// <inheritdoc cref="EnemyEntity.GetReward"/>
+    public virtual Reward GetReward() => new()
+    {
+        Cash = 2,
+    };
 
-    public virtual string? GetBackgroundGUID() => null;
+    #endregion
+
+    #region Intent
 
     public abstract EnemyAction GetNextAction(uint roundCount, EnemyEntity source);
 
-    public override void Register()
+    #endregion
+
+    public override sealed void Register()
     {
 #if DEBUG
         Log(Name + " registered");

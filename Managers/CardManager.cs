@@ -21,19 +21,49 @@ internal class CardManager
     /// List of the cards that are in the discard pile
     /// </summary>
     private readonly List<HeroCard> _discardCardList = new();
+    public int DiscardPileCount => _discardCardList.Count;
 
     /// <summary>
     /// List of the cards that are in the draw pile
     /// </summary>
     private List<HeroCard> _drawCardList = new();
-
-    public int DiscardPileCount => _discardCardList.Count;
     public int DrawPileCount => _drawCardList.Count;
 
-    /// <summary>
-    /// Cards that make the player's hand
-    /// </summary>
-    private readonly HeroCard?[] _hand = new HeroCard?[MaxPlayerCardCount];
+    internal void ResetPiles()
+    {
+        EmptyHand(false);
+        _discardCardList.Clear(); // Clear discard pile
+        _exileCardList.Clear(); // Clear exile pile
+
+        _drawCardList = new(_globalCardList); // Set local deck to global deck
+    }
+
+    internal void AddCard(HeroCard card, bool isPermanent)
+    {
+        if (isPermanent)
+            _globalCardList.Add(card);
+
+        _drawCardList.Add(card);
+    }
+
+    private void FillDrawBack()
+    {
+        if (_discardCardList.Count == 0)
+            return;
+
+        _drawCardList = new(_discardCardList);
+        _discardCardList.Clear();
+
+        // Shuffle
+        for (int i = 0; i < _drawCardList.Count; i++)
+        {
+            int rdmIndex = Random.Range(0, _drawCardList.Count);
+
+            (_drawCardList[i], _drawCardList[rdmIndex]) = (_drawCardList[rdmIndex], _drawCardList[i]);
+        }
+
+        SoundManager.PlaySound(SoundManager.SOUND_SHUFFLE, SoundManager.GeneralGroup);
+    }
 
     #endregion Piles
 
@@ -47,14 +77,14 @@ internal class CardManager
     internal void SelectCard(int index)
     {
         // Deselect the current selected card
-        GameManager.Instance.UiManager?.SetCardCursorState(SelectedCardIndex, false);
+        UIManager.SetCardCursorState(SelectedCardIndex, false);
 
         // Update selected card
         SelectedCardIndex = index;
 
         // Select the current selected card
-        if (Main.GetSettingValue(Main.SETTING_SHOW_CARD_CURSOR, true))
-            GameManager.Instance.UiManager?.SetCardCursorState(SelectedCardIndex, true);
+        if (Settings.GetSettingValue(Settings.SETTING_SHOW_CARD_CURSOR, true))
+            UIManager.SetCardCursorState(SelectedCardIndex, true);
     }
 
     internal void PlayCard()
@@ -98,13 +128,13 @@ internal class CardManager
 
     private readonly Dictionary<string, int> CardCounters = new();
 
-    /// <returns>Value of the counter with the name <paramref name="name"/></returns>
+    /// <returns>Value of the counter associated with the <paramref name="name"/></returns>
     internal int GetCounter(string name) => CardCounters.TryGetValue(name, out int value) ? value : 0;
 
     /// <summary>
     /// Adds <paramref name="value"/> to the value of the counter with the name <paramref name="name"/>
     /// </summary>
-    /// <returns>New value</returns>
+    /// <returns>The value of the counter after the modification.</returns>
     internal int AddCounter(string name, int value)
     {
         int v = GetCounter(name) + value;
@@ -119,16 +149,36 @@ internal class CardManager
 
     #endregion Counters
 
-    internal void FillHand(int amount, int position = -1, bool swingAnimation = false)
+    #region Hand
+
+    /// <summary>
+    /// Cards that make the player's hand
+    /// </summary>
+    private readonly HeroCard?[] _hand;
+
+    internal void ShuffleHand(bool swingAnimation) => FillHand(_hand.Length, swingAnimation: swingAnimation);
+
+    private void FillHand(int amount, int position = -1, bool swingAnimation = false)
     {
-        if (amount > MaxPlayerCardCount)
+        if (amount > _hand.Length)
         {
-            Log($"Cannot fill a hand bigger than the set limit. ({amount} > {MaxPlayerCardCount})");
+            Log($"Cannot fill a hand bigger than the hand itself. ({amount} > {_hand.Length})");
             return;
         }
 
         for (int i = 0; i < amount; i++)
         {
+            // Find the position of the new card in the hand
+            int pos = position < 0 ? i : position;
+
+            HeroCard? handCard = _hand[pos];
+
+            if (handCard != null)
+            {
+                //_discardCardList.Add(handCard);
+                (handCard.ExileOnPlay ? _exileCardList : _discardCardList).Add(handCard);
+            }
+
             // Empty discard pile if needed
             if (_drawCardList.Count == 0)
             {
@@ -137,25 +187,21 @@ internal class CardManager
 
             int rdmIndex = Random.Range(0, _drawCardList.Count);
 
+            bool hasEnoughCards = _drawCardList.Count != 0;
+
             // Select the card to draw
-            HeroCard selectedCard = _drawCardList[rdmIndex];
-
-            // Find the position of the new card in the hand
-            int pos = position < 0 ? i : position;
-
-            HeroCard? handCard = _hand[pos];
-
-            if (handCard != null)
-            {
-                _discardCardList.Add(handCard);
-                //(toExile ? _exileCardList : _discardCardList).Add(handCard);
-            }
+            HeroCard? selectedCard = hasEnoughCards ?
+                _drawCardList[rdmIndex] :
+                null;
 
             _hand[pos] = selectedCard;
-            GameManager.Instance.UiManager?.SetUpPlayerCard(pos, selectedCard, swingAnimation);
+            UIManager.SetUpPlayerCard(pos, selectedCard, swingAnimation);
 
-            (_drawCardList[rdmIndex], _drawCardList[^1]) = (_drawCardList[^1], _drawCardList[rdmIndex]);
-            _drawCardList.RemoveAt(_drawCardList.Count - 1);
+            if (hasEnoughCards)
+            {
+                (_drawCardList[rdmIndex], _drawCardList[^1]) = (_drawCardList[^1], _drawCardList[rdmIndex]);
+                _drawCardList.RemoveAt(_drawCardList.Count - 1);
+            }
         }
 
         GameManager.Instance.Player?.UpdatePiles(this);
@@ -173,52 +219,17 @@ internal class CardManager
             _hand[i] = null;
         }
 
-        GameManager.Instance.UiManager?.SetLockState(true);
+        UIManager.SetLockState(true);
 
         if (updatePiles)
             GameManager.Instance.Player?.UpdatePiles(this);
     }
 
-    internal void AddCard(HeroCard card, bool isPermanent)
-    {
-        if (isPermanent)
-            _globalCardList.Add(card);
+    #endregion
 
-        // Add card to the local piel
-        _drawCardList.Add(card);
-    }
-
-    internal void ResetPiles()
-    {
-#if DEBUG
-        Log("Reseting piles");
-#endif
-
-        EmptyHand(false);
-        _discardCardList.Clear(); // Clear discard pile
-        _exileCardList.Clear(); // Clear exile pile
-
-        _drawCardList = new(_globalCardList); // Set local deck to global deck
-    }
-
-    private void FillDrawBack()
-    {
-        _drawCardList = new(_discardCardList);
-        _discardCardList.Clear();
-
-        // Shuffle
-        for (int i = 0; i < _drawCardList.Count; i++)
-        {
-            int rdmIndex = Random.Range(0, _drawCardList.Count);
-
-            (_drawCardList[0], _drawCardList[rdmIndex]) = (_drawCardList[rdmIndex], _drawCardList[i]);
-        }
-
-        SoundManager.PlaySound(SoundManager.SOUND_SHUFFLE, SoundManager.GeneralGroup);
-    }
-
-    internal CardManager(RogueClass rogueClass)
+    internal CardManager(RogueClass rogueClass, int handSize)
     {
         _globalCardList = rogueClass.InitialCards();
+        _hand = new HeroCard?[handSize];
     }
 }

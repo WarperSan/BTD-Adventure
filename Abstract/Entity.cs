@@ -1,6 +1,8 @@
-﻿using BTDAdventure.Entities;
+﻿using BTDAdventure.Effects.Interfaces;
+using BTDAdventure.Entities;
 using BTDAdventure.Managers;
 using Il2Cpp;
+using Il2CppNinjaKiwi.Common;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,78 +11,37 @@ namespace BTDAdventure.Abstract;
 
 public abstract class Entity
 {
-    public Entity(GameObject? @object)
+    public Entity(GameObject @object)
     {
-        if (@object != null)
-        {
-            SetUpHealthUI(@object);
-            SetUpShieldUI(@object);
-            SetUpEffectUI(@object);
-            SetUpExtraUI(@object);
-        }
+        SetUpHealthUI(@object);
+        SetUpShieldUI(@object);
+        SetUpEffectUI(@object);
+        SetUpExtraUI(@object);
     }
 
     #region Health
 
     /// <summary>
-    /// Amount of HP remaining
+    /// The amount of HP remaining for this entity.
     /// </summary>
     protected int Health;
 
     /// <summary>
-    /// Max amount of HP that the entity can have
+    /// Is this entity still alive ?
     /// </summary>
-    protected int MaxHealth = 10;
-
-    protected NK_TextMeshProUGUI? HealthText;
-    protected GameObject? HealthImg;
-
     public bool IsAlive => Health > 0;
 
-    public int GetHealth() => Health;
+    // --- Health Modification ---
+    /// <inheritdoc cref="ModifyHealth(int, bool, Entity?)"/>
+    protected int RemoveHealth(int amount, Entity? source) => ModifyHealth(amount, true, source);
+
+    /// <inheritdoc cref="ModifyHealth(int, bool, Entity?)"/>
+    protected int AddHealth(int amount, Entity? source) => ModifyHealth(amount, false, source);
 
     /// <summary>
-    /// Called whenever the health UI needs an update
+    /// Modifies the current amount of health by <paramref name="amount"/> by <paramref name="source"/>.
     /// </summary>
-    protected void UpdateHealthUI()
-    {
-        HealthText?.UpdateText(Health + " / " + MaxHealth);
-
-        UpdateExtraHealthUI();
-    }
-
-    public void ReceiveDamage(Entity? source, Damage damage)
-    {
-        // Check for own skills to modify damage
-        // Check for own ability to modify damage
-
-        if (source != null)
-        {
-            OnPreAttacked?.Invoke(this, source);
-        }
-
-        if (damage.IgnoresShield)
-        {
-            RemoveHealth(damage.Amount, source);
-        }
-        else
-        {
-            ShieldDamage(damage, source);
-        }
-
-        if (source != null)
-        {
-            OnPostAttacked?.Invoke(this, source);
-        }
-    }
-
-    public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
-
-    protected void RemoveHealth(int amount, Entity? source) => ModifyHealth(amount, true, source);
-
-    protected void AddHealth(int amount, Entity? source) => ModifyHealth(amount, false, source);
-
-    private void ModifyHealth(int amount, bool isRemoving, Entity? source)
+    private int ModifyHealth(int amount, bool isRemoving, Entity? source)
     {
         OnHealthModify?.Invoke(ref amount);
 
@@ -93,20 +54,119 @@ public abstract class Entity
         }
         else
         {
-            Health = Math.Min(Health + amount, MaxHealth);
+            int newHealth = Health + amount;
+
+            Health = Settings.GetSettingValue(Settings.SETTING_CAP_HEALTH_GAIN, true) ?
+                Math.Min(Health + amount, MaxHealth) :
+                newHealth;
         }
 
         UpdateHealthUI();
 
         if (Health <= 0)
         {
+            OnHealthDeath?.Invoke();
             OnDeath();
         }
+        return amount;
     }
 
-    protected virtual bool ScaleUpMaxHP { get; } = false;
+    /// <summary>
+    /// Deals an attack defined by <paramref name="damage"/> from <paramref name="source"/> to this entity.
+    /// </summary>
+    public int ReceiveDamage(Entity? source, Damage damage)
+    {
+        int damageAmount = 0;
 
-    private void ModifyMaxHealth(int amount, bool isRemoving)
+        // Check for own skills to modify damage
+        // Check for own ability to modify damage
+
+        if (source != null)
+            OnPreAttacked?.Invoke(this, source);
+
+        if (damage.IgnoresShield)
+            damageAmount = RemoveHealth(damage.Amount, source);
+        else
+            damageAmount = RemoveShield(Mathf.FloorToInt(damage.Amount * damage.ShieldMultiplier), source);
+
+        if (source != null)
+            OnPostAttacked?.Invoke(this, source);
+
+        return damageAmount;
+    }
+
+    public void ReceiveDamage(Entity? source, int amount) => ReceiveDamage(source, new Damage(amount));
+
+    // --- Health UI ---
+    /// <summary>
+    /// Text used to display the current health and the maximum health of this entity.
+    /// </summary>
+    protected NK_TextMeshProUGUI? HealthText;
+
+    /// <summary>
+    /// Image used to display the health icon.
+    /// </summary>
+    protected GameObject? HealthImg;
+
+    /// <summary>
+    /// Updates the health UI of the entity.
+    /// </summary>
+    protected void UpdateHealthUI()
+    {
+        int displayedHealth =
+            Settings.GetSettingValue(Settings.SETTING_SHOW_NEGATIVE_OVERFLOW, true) ?
+            Health :
+            Math.Max(Health, 0);
+
+        HealthText?.UpdateText(displayedHealth + " / " + MaxHealth);
+
+        UpdateExtraHealthUI();
+    }
+
+    /// <summary>
+    /// Called whenever the health UI gets updated.
+    /// </summary>
+    protected virtual void UpdateExtraHealthUI()
+    { }
+
+    /// <summary>
+    /// Called in order to set every element for the health UI.
+    /// </summary>
+    protected virtual void SetUpHealthUI(GameObject root)
+    { }
+
+    // --- Health Events ---
+    private delegate void HealthModifyEvent(ref int amount);
+    private delegate void HealthDeathEvent();
+
+    private event HealthModifyEvent? OnHealthModify;
+    private event HealthDeathEvent? OnHealthDeath;
+
+    /// <summary>
+    /// Called whenever this entity dies.
+    /// </summary>
+    protected virtual void OnDeath()
+    { }
+
+    #endregion
+
+    #region Max Health
+
+    /// <summary>
+    /// The maximum amount of HP this entity can have.
+    /// </summary>
+    protected int MaxHealth = 10;
+
+    /// <summary>
+    /// Determines if, when this entity increases its maximum HP, its current HP should scale up proportionally.
+    /// </summary>
+    protected virtual bool ScaleUpMaxHP => false;
+
+    // --- Max HP Modification ---
+    /// <summary>
+    /// Modifies the current amount of maximum health by <paramref name="amount"/> by <paramref name="source"/>.
+    /// </summary>
+    private void ModifyMaxHealth(int amount, bool isRemoving, Entity? source)
     {
         if (isRemoving)
         {
@@ -129,101 +189,18 @@ public abstract class Entity
         }
     }
 
-    /// <summary>
-    /// Called whenever the entity dies.
-    /// </summary>
-    protected virtual void OnDeath()
-    { }
-
-    protected virtual void SetUpHealthUI(GameObject root)
-    { }
-
-    protected virtual void UpdateExtraHealthUI()
-    { }
-
-    #endregion Health
+    #endregion
 
     #region Shield
 
+    /// <summary>
+    /// The amount of shield remaining for this entity.
+    /// </summary>
     private int Shield;
 
     protected int BaseShield = 1;
 
-    protected NK_TextMeshProUGUI? ShieldText;
-    protected GameObject? ShieldImg;
-
-    private void ShieldDamage(Damage damage, Entity? source)
-    {
-        if (Shield < damage.Amount)
-        {
-            RemoveHealth(damage.Amount - Shield, source);
-            RemoveShield(Shield, source); // Set it to 0
-        }
-        else
-        {
-            if (source != null)
-                SoundManager.PlaySound(SoundManager.SOUND_SHIELD_GAINED, SoundManager.GeneralGroup);
-
-            ModifyShield(damage.Amount, true, source);
-        }
-    }
-
-    internal void AddShield(int amount, Entity? source) => ModifyShield(amount, false, source);
-
-    internal void RemoveShield(int amount, Entity? source) => ModifyShield(amount, true, source);
-
-    internal void RemoveShield(Entity? source) => RemoveShield(Shield, source);
-
-    private void ModifyShield(int amount, bool isRemoving, Entity? source)
-    {
-        if (isRemoving)
-        {
-            if (amount > Shield)
-            {
-                ModifyHealth(amount - Shield, true, source);
-                Shield = 0;
-            }
-            else
-                Shield -= amount;
-        }
-        else
-        {
-            Shield += amount;
-        }
-
-        UpdateShieldText();
-    }
-
-    /// <summary>
-    /// Updates the shield UI of the entity
-    /// </summary>
-    public void UpdateShieldText()
-    {
-        bool showShield = Shield > 0;
-
-        ShieldImg?.SetActive(showShield);
-        //ShieldText?.gameObject.SetActive(showShield);
-
-        HealthImg?.SetActive(!showShield);
-
-        ShieldText?.UpdateText(Shield);
-    }
-
-    internal void ClearShield()
-    {
-        if (ShouldKeepShield())
-            return;
-
-        Shield = 0;
-        UpdateShieldText();
-    }
-
-    public int GetCurrentShield() => Shield;
-
-    protected virtual void SetUpShieldUI(GameObject root)
-    { }
-
-    internal int GetShield()
+    internal int GetNextShield()
     {
         int amount = BaseShield;
 
@@ -233,6 +210,82 @@ public abstract class Entity
         return amount;
     }
 
+    // --- Shield UI ---
+    protected NK_TextMeshProUGUI? ShieldText;
+    protected GameObject? ShieldImg;
+
+    /// <summary>
+    /// Updates the shield UI of the entity.
+    /// </summary>
+    protected void UpdateShieldText()
+    {
+        bool showShield = Shield > 0;
+
+        ShieldImg?.SetActive(showShield);
+        ShieldText?.gameObject.SetActive(showShield);
+
+        HealthImg?.SetActive(!showShield);
+
+        ShieldText?.UpdateText(Shield);
+    }
+
+    /// <summary>
+    /// Called in order to set every element for the shield UI.
+    /// </summary>
+    protected virtual void SetUpShieldUI(GameObject root)
+    { }
+
+    // --- Shield Modification ---
+    /// <inheritdoc cref="ModifyShield(int, bool, Entity?)"/>
+    internal void AddShield(int amount, Entity? source) => ModifyShield(amount, false, source);
+
+    /// <inheritdoc cref="ModifyShield(int, bool, Entity?)"/>
+    internal int RemoveShield(int amount, Entity? source) => ModifyShield(amount, true, source);
+
+    internal void RemoveShield(Entity? source) => RemoveShield(Shield, source);
+
+    /// <summary>
+    /// Modifies the current shield by <paramref name="amount"/> by <paramref name="source"/>.
+    /// </summary>
+    private int ModifyShield(int amount, bool isRemoving, Entity? source)
+    {
+        int damageAmount = 0;
+
+        if (isRemoving)
+        {
+            if (amount > Shield)
+            {
+                damageAmount = RemoveHealth(amount - Shield, source);
+                Shield = 0;
+
+                OnShieldClear?.Invoke(true);
+            }
+            else
+                Shield -= amount;
+        }
+        else
+            Shield += amount;
+
+        UpdateShieldText();
+
+        return damageAmount;
+    }
+
+    /// <summary>
+    /// Called whenever this entity should clear its shield at the start of its turn.
+    /// </summary>
+    private void ClearShield()
+    {
+        if (ShouldKeepShield())
+            return;
+
+        Shield = 0;
+        UpdateShieldText();
+
+        OnShieldClear?.Invoke(false);
+    }
+
+    /// <returns>Should this entity keep its shield when its turn starts ?</returns>
     private bool ShouldKeepShield()
     {
         bool result = false;
@@ -242,17 +295,23 @@ public abstract class Entity
         return result;
     }
 
-    #endregion Shield
+    // --- Shield Events ---
+    private delegate void ShieldKeepEvent(ref bool keepShield);
+    private delegate void ShieldModifyEvent(ref int amount);
+    private delegate void ShieldClearEvent(bool clearFromEntity);
 
-    protected virtual void SetUpExtraUI(GameObject root)
-    { }
+    private event ShieldKeepEvent? OnShieldKeep;
+    private event ShieldModifyEvent? OnShieldModify;
+    private event ShieldClearEvent? OnShieldClear;
+
+    #endregion
 
     #region Attack
 
     protected int? Damage;
 
-    /// <returns>Amount of damage that an attack would deal</returns>
-    internal int GetAttack(int? amount = null)
+    /// <returns>The amount of damage that an attack by this entity would deal.</returns>
+    internal int CalculateDamage(int? amount = null)
     {
         Damage damage = new(amount ?? Damage ?? 0);
 
@@ -268,52 +327,48 @@ public abstract class Entity
     }
 
     // Normal attack => AttackTarget(Entity)
-    // Double attack => AttackTarget(int, Entity)
+    // Thorns attack => AttackTarget(int, Entity)
     // % attack => AttackTarget(Damage, Entity)
 
     /// <summary>
-    /// Attacks <paramref name="target"/> with a default attack dealing <see cref="GetAttack()"/> damage.
+    /// Attacks <paramref name="target"/> with a default attack.
     /// </summary>
-    public void AttackTarget(Entity? target) => AttackTarget(this.GetAttack(), target);
+    public void AttackTarget(Entity target) => AttackTarget(this.CalculateDamage(), target);
 
     /// <summary>
     /// Attacks <paramref name="target"/> with a default attack dealing <paramref name="amount"/> damage.
     /// </summary>
-    public void AttackTarget(int amount, Entity? target) => AttackTarget(new Damage(amount), target);
+    /// <remarks>
+    /// This attack will deal fixed amount of damage.
+    /// </remarks>
+    public void AttackTarget(int amount, Entity target) => AttackTarget(new Damage(amount), target);
 
     /// <summary>
-    /// Attacks <paramref name="target"/> with the attack <paramref name="damage"/>.
+    /// Attacks <paramref name="target"/> with <paramref name="damage"/>.
     /// </summary>
-    public virtual void AttackTarget(Damage damage, Entity? target) => target?.ReceiveDamage(this, damage);
+    public int AttackTarget(Damage damage, Entity target) => target.ReceiveDamage(this, damage);
 
-    #endregion Attack
+    // --- Attack Events ---
+    private delegate void AttackedEvent(Entity source, Entity attacker);
+    private delegate void DamageModifyEvent(Entity entity, ref Damage amount);
+
+    private event AttackedEvent? OnPreAttacked;
+    private event AttackedEvent? OnPostAttacked;
+    private event DamageModifyEvent? OnDamageModify;
+
+    #endregion
 
     #region Effects
 
-    internal readonly List<Effect> _effects = new();
+    private readonly List<Effect> _effects = new();
 
+    // --- Effect UI ---
     protected GameObject? EffectHolder;
-    internal Transform? EffectVisual;
 
-    /// <summary>
-    /// Updates the counter of all effects and removes effects if necessary
-    /// </summary>
-    internal void UpdateEffects()
-    {
-        for (int i = _effects.Count - 1; i >= 0; i--)
-        {
-            _effects[i].UpdateEffect(this);
-        }
-    }
+    protected virtual void SetUpEffectUI(GameObject root)
+    { }
 
-    /// <summary>
-    /// Checks if the entity has the given effect
-    /// </summary>
-    public bool HasEffect<T>() where T : Effect => GetEffect<T>() != null;
-
-    /// <returns><see cref="Effect.Level"/> of the effect</returns>
-    public int GetEffectLevel<T>() where T : Effect => GetEffect<T>()?.Level ?? 0;
-
+    // --- Effect Getter ---
     private Effect? GetEffect<T>() where T : Effect
     {
         foreach (var item in _effects)
@@ -324,37 +379,37 @@ public abstract class Entity
         return null;
     }
 
-    #region Add
+    /// <returns><see cref="Effect.Level"/> of the effect</returns>
+    public int GetEffectLevel<T>() where T : Effect => GetEffect<T>()?.Level ?? 0;
 
+    // --- Effect Addition ---
     private Effect GetOrCreateEffect<T>() where T : Effect
     {
         Effect? effect = GetEffect<T>();
 
+        if (effect != null)
+            return effect;
+
+        effect = Activator.CreateInstance<T>();
+
         if (effect == null)
-        {
-            effect = Activator.CreateInstance<T>();
+            throw new NullReferenceException();
 
-            if (effect == null)
-                throw new NullReferenceException();
+        GameObject? effectObject = EffectHolder != null ? UIManager.GetEffectSlot(EffectHolder.transform) : null;
 
-            GameObject? effectObject = EffectHolder != null ?
-                GameObject.Instantiate(GameManager.Instance.EffectSlotPrefab, EffectHolder.transform) :
-                null;
+        effect.SetUpUI(this, effectObject);
 
-            effect.SetUpUI(this, effectObject);
+        Subscribe(effect);
+        _effects.Add(effect);
 
-            Subscribe(effect);
-            _effects.Add(effect);
-
-            OnEffectUpdate(effect);
-        }
+        OnEffectUpdate(effect);
         return effect;
     }
 
     /// <summary>
     /// Adds the <paramref name="amount"/> to <see cref="Effect.Level"/> of <paramref name="effect"/>.
     /// </summary>
-    /// <returns>New <see cref="Effect.Level"/> of <paramref name="effect"/>.</returns>
+    /// <returns>The amount of levels of the effect after the modification.</returns>
     private int AddLevel(Effect effect, int amount)
     {
         effect.Level += amount;
@@ -368,9 +423,15 @@ public abstract class Entity
     }
 
     /// <summary>
+    /// Adds <paramref name="amount"/> levels to the effect of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddLevel(Effect, int)"/>
+    public int AddLevel<T>(int amount) where T : Effect => AddLevel(GetOrCreateEffect<T>(), amount);
+
+    /// <summary>
     /// Adds the <paramref name="amount"/> to the <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.
     /// </summary>
-    /// <returns>New <see cref="Effect.LowestLevel"/> of <paramref name="effect"/>.</returns>
+    /// <returns>The amount of permanent levels of the effect after the modification.</returns>
     private int AddPermanentLevel(Effect effect, int amount)
     {
         effect.LowestLevel += amount;
@@ -381,9 +442,21 @@ public abstract class Entity
         return effect.LowestLevel;
     }
 
-    #endregion Add
+    /// <summary>
+    /// Adds <paramref name="amount"/> permanent levels to the effect of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddPermanentLevel(Effect, int)"/>
+    public int AddPermanentLevel<T>(int amount) where T : Effect => AddPermanentLevel(GetOrCreateEffect<T>(), amount);
 
-    #region Remove
+    // --- Effect Reduction ---
+    /// <summary>
+    /// Updates the counter of all effects and removes effects if necessary
+    /// </summary>
+    internal void UpdateEffects()
+    {
+        for (int i = _effects.Count - 1; i >= 0; i--)
+            _effects[i].UpdateEffect(this);
+    }
 
     /// <summary>
     /// Removes the given effect
@@ -395,6 +468,24 @@ public abstract class Entity
         OnEffectUpdate(effect);
         return _effects.Remove(effect);
     }
+
+    /// <summary>
+    /// Removes the effect of the give type
+    /// </summary>
+    /// <returns>Removed effect</returns>
+    public Effect? RemoveEffect<T>() where T : Effect
+    {
+        Effect? effect = GetEffect<T>();
+
+        if (effect != null)
+            RemoveEffect(effect);
+        return effect;
+    }
+
+    /// <summary>
+    /// Removes all effects
+    /// </summary>
+    public Effect[] RemoveAllEffects() => RemoveAllMatching(new Predicate<Effect>(_ => true));
 
     /// <summary>
     /// Removes all effects matching the given condition
@@ -417,80 +508,57 @@ public abstract class Entity
         return effectsRemoved.ToArray();
     }
 
-    #endregion Remove
-
-    #region Variants
-
+    // --- Effect Events ---
     /// <summary>
-    /// Removes the effect of the give type
+    /// Called whenever an effect of this entity is updated.
     /// </summary>
-    /// <returns></returns>
-    public Effect? RemoveEffect<T>() where T : Effect
+    protected virtual void OnEffectUpdate(Effect effect)
+    { }
+
+    #endregion
+    
+    #region Visuals
+
+    protected Transform? EffectVisual;
+
+    internal void PlayEffectVisual(string assetName)
     {
-        Effect? effect = GetEffect<T>();
+        if (!Settings.GetSettingValue(Settings.SETTING_SHOW_VISUALS, true))
+            return;
 
-        if (effect != null)
-            RemoveEffect(effect);
-        return effect;
+        PlayEffectVisual(LoadAsset<GameObject>(assetName));
     }
-
-    /// <summary>
-    /// Removes all effects
-    /// </summary>
-    public Effect[] RemoveAllEffects() => RemoveAllMatching(new Predicate<Effect>(_ => true));
-
-    public int AddLevel<T>(int amount) where T : Effect => AddLevel(GetOrCreateEffect<T>(), amount);
-
-    public int AddPermanentLevel<T>(int amount) where T : Effect => AddPermanentLevel(GetOrCreateEffect<T>(), amount);
-
-    #endregion Variants
-
-    internal void PlayEffectVisual(string assetName) => PlayEffectVisual(LoadAsset<GameObject>(assetName));
 
     /// <summary>
     /// Instantiates <paramref name="effect"/>
     /// </summary>
     public void PlayEffectVisual(GameObject? effect)
     {
-        if (effect != null && EffectVisual != null)
-        {
-            GameObject.Instantiate(effect, EffectVisual);
-        }
+        if (!Settings.GetSettingValue(Settings.SETTING_SHOW_VISUALS, true))
+            return;
+
+        if (effect == null || EffectVisual == null)
+            return;
+
+        GameObject.Instantiate(effect, EffectVisual);
     }
 
-    protected virtual void SetUpEffectUI(GameObject root)
+    public void DestroyAllVisual()
+    {
+        EffectVisual?.DestroyAllChildren();
+    }
+
+    #endregion
+
+    protected virtual void SetUpExtraUI(GameObject root)
     { }
-
-    protected virtual void OnEffectUpdate(Effect effect)
-    { }
-
-    #endregion Effects
-
-    #region Events
-
-    private delegate void ShieldKeepEvent(ref bool keepShield);
-
-    private event ShieldKeepEvent OnShieldKeep;
-
-    private delegate void ShieldModifyEvent(ref int amount);
-
-    private event ShieldModifyEvent OnShieldModify;
-
-    private delegate void AttackedEvent(Entity source, Entity attacker);
-
-    private event AttackedEvent OnPreAttacked;
-
-    private event AttackedEvent OnPostAttacked;
-
-    private delegate void DamageModifyEvent(Entity entity, ref Damage amount);
-
-    private event DamageModifyEvent OnDamageModify;
 
     #region Turn Event
 
     private delegate void TurnEvent(Entity entity);
 
-    private event TurnEvent OnPreTurn;
+    private event TurnEvent? OnPreTurn;
+    private event TurnEvent? OnPostTurn;
 
     internal void PreTurn()
     {
@@ -498,9 +566,11 @@ public abstract class Entity
         OnPreTurn?.Invoke(this);
     }
 
-    private event TurnEvent OnPostTurn;
-
-    internal void PostTurn() => OnPostTurn?.Invoke(this);
+    internal void PostTurn()
+    {
+        this.UpdateEffects();
+        OnPostTurn?.Invoke(this);
+    }
 
     #endregion Turn Event
 
@@ -508,19 +578,13 @@ public abstract class Entity
 
     private delegate void ActionEvent(Entity source, HeroCard? card);
 
-    private event ActionEvent OnPreAction;
+    private event ActionEvent? OnPreAction;
+    private event ActionEvent? OnPostAction;
 
-    internal void PreAction(HeroCard? card = null) => OnPreAction?.Invoke(this, card);
-
-    private event ActionEvent OnPostAction;
-
-    internal void PostAction(HeroCard? card = null) => OnPostAction?.Invoke(this, card);
+    internal void PreAction(HeroCard? card) => OnPreAction?.Invoke(this, card);
+    internal void PostAction(HeroCard? card) => OnPostAction?.Invoke(this, card);
 
     #endregion Action Event
-
-    private delegate void HealthModifyEvent(ref int amount);
-
-    private event HealthModifyEvent OnHealthModify;
 
     private void Subscribe(Effect effect)
     {
@@ -561,9 +625,6 @@ public abstract class Entity
         ChildrenSubscribe(effect);
     }
 
-    protected virtual void ChildrenSubscribe(Effect effect)
-    { }
-
     private void Unsubscribe(Effect effect)
     {
         if (effect is IShieldEffect shieldEffect)
@@ -603,8 +664,9 @@ public abstract class Entity
         ChildrenUnsubscribe(effect);
     }
 
-    protected virtual void ChildrenUnsubscribe(Effect effect)
+    protected virtual void ChildrenSubscribe(Effect effect)
     { }
 
-    #endregion Events
+    protected virtual void ChildrenUnsubscribe(Effect effect)
+    { }
 }

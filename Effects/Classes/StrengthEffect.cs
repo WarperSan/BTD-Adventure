@@ -1,4 +1,4 @@
-﻿namespace BTDAdventure.Effects;
+﻿namespace BTDAdventure.Effects.Classes;
 
 /// <summary>
 /// Each point of Strength increases the damage by 1.
