@@ -1,6 +1,11 @@
-# Rogue Adventure (WIP)
-Based of the mobile game 'Rogue Adventure'
+# Rogue Adventure
+If you stumble upon this and you want to finish this project, go ahead. This project is separated into 2 parts:
+1. API (this)
+2. Cards mod
 
+I am not a game designer, so designing cards for it is not my strength. If you are willing to do that, I am willing to continue working on the API. Contact me via Discord if this interests you.
+
+Based of the mobile game 'Rogue Adventure' and the game 'Slay the Spire'.
 # TODO
 ## Very important
 - [ ] Fix SFX
